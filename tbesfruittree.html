@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>東寶伊甸園-花開現果闖關遊戲</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #111827;
+            color: white;
+            overflow: hidden;
+            touch-action: none; /* 防止手機滑動 */
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 960px;
+            aspect-ratio: 16/9;
+            margin: 0 auto;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .hidden { display: none !important; }
+        
+        /* 遊戲內 UI 層 */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none; /* 讓點擊穿透到 canvas */
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            font-weight: 900;
+            font-size: 1.2rem;
+            z-index: 5;
+        }
+        
+        /* 手機虛擬按鍵 */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px; left: 0; right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 5;
+        }
+        .btn-control {
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 60px; height: 60px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; user-select: none;
+            backdrop-filter: blur(5px);
+        }
+        .btn-control:active { background: rgba(255, 255, 255, 0.6); }
+        
+        @media (min-width: 768px) {
+            #mobile-controls { display: none; }
+        }
+
+        /* 動畫 */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .animate-pulse-fast { animation: pulse 1.5s infinite; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen m-0 p-4">
+
+    <div id="game-container">
+        <!-- 畫布 -->
+        <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+        <!-- 遊戲狀態 UI -->
+        <div id="ui-layer" class="hidden text-white w-full h-full pointer-events-none">
+            <!-- 左側資訊 -->
+            <div class="flex flex-col gap-1">
+                <div class="flex items-center gap-2">
+                    <span class="text-red-400">生命:</span>
+                    <div class="w-32 h-4 bg-gray-700 rounded-full overflow-hidden border border-gray-600">
+                        <div id="ui-health-bar" class="h-full bg-green-500 transition-all duration-300" style="width: 100%;"></div>
+                    </div>
+                    <span id="ui-health-text" class="text-sm text-gray-300 font-normal">30/30</span>
+                </div>
+                <div class="text-yellow-300">總分: <span id="ui-score">0</span></div>
+                <div class="text-blue-300" id="ui-ammo-container">子彈: <span id="ui-ammo">0</span></div>
+                <div class="text-white mt-1">時間: <span id="ui-time">100</span>s</div>
+                <div class="text-sm text-gray-200" id="ui-goal">目標: 100分開啟終點</div>
+            </div>
+            
+            <!-- 右上角 遊戲 Logo (鮮豔 + 叢林野獸插圖) -->
+            <div class="flex flex-col items-end opacity-100 mt-2 mr-4 pointer-events-auto transition-transform hover:scale-105" style="font-family: 'ZCOOL KuaiLe', cursive;">
+                <div class="relative flex items-center">
+                    <!-- 叢林與野獸插圖 (Emoji 結合 CSS 陰影) -->
+                    <span class="absolute -left-6 -top-2 text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-0">🌴</span>
+                    <span class="absolute -left-2 -bottom-2 text-xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20">🌿</span>
+                    <span class="absolute -right-4 -top-3 text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-0 transform rotate-12">🐯</span>
+
+                    <!-- 鮮豔的主標題 (修正漸層與描邊衝突問題，使用純色+多重陰影) -->
+                    <div class="text-2xl md:text-3xl tracking-widest relative z-10" style="color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 4px 4px rgba(0,0,0,0.8);">
+                        東寶伊甸園
+                    </div>
+                </div>
+                
+                <div class="relative mt-2 pr-1">
+                    <!-- 更多插圖 -->
+                    <span class="absolute -left-4 -top-2 text-xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20 transform -rotate-12">🦁</span>
+                    <span class="absolute -right-2 -bottom-1 text-lg drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20">🌺</span>
+                    
+                    <!-- 鮮豔的副標題 -->
+                    <div class="text-[10px] md:text-xs text-white px-3 py-1 rounded-full transform -rotate-3 relative z-10 tracking-wider" style="background: linear-gradient(to right, #9933FF, #FF3366); border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.6);">
+                        花開現果闖關遊戲
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 手機控制 -->
+        <div id="mobile-controls" class="hidden">
+            <div class="flex gap-4">
+                <div class="btn-control" id="btn-left">◀</div>
+                <div class="btn-control" id="btn-right">▶</div>
+            </div>
+            <div class="flex gap-4">
+                <div class="btn-control text-red-500" id="btn-shoot">🎯</div>
+                <div class="btn-control text-blue-500" id="btn-up">▲</div>
+            </div>
+        </div>
+
+        <!-- 開始畫面 -->
+        <div id="start-screen" class="overlay">
+            <h1 class="text-4xl md:text-5xl mb-2 text-center tracking-widest" style="font-family: 'ZCOOL KuaiLe', cursive; color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 5px 10px rgba(0,0,0,0.8);">東寶伊甸園</h1>
+            <h2 class="text-xl md:text-2xl font-bold text-pink-300 mb-6 text-center">花開現果闖關遊戲</h2>
+            
+            <div class="bg-gray-800 bg-opacity-90 p-6 rounded-xl max-w-md text-sm md:text-base mb-6 shadow-2xl border border-gray-600">
+                <h3 class="text-xl font-bold mb-3 text-yellow-300 border-b border-gray-600 pb-2">遊戲說明</h3>
+                <ul class="list-disc pl-5 space-y-2 text-gray-200">
+                    <li><b>控制:</b> [↑] 跳躍, [←][→] 移動, [空白鍵] 射擊</li>
+                    <li>🥭🍒🍋 <b>東寶現產水果:</b> 生命 +10, 分數 +30 (芒果、荔枝、檸檬)</li>
+                    <li>👼 <b>天使降臨:</b> 天使會在空中飛行，並隨機投下神聖的水果！</li>
+                    <li>🔫 <b>槍枝:</b> 獲得 20 發子彈, 分數 +10</li>
+                    <li>🍔🍟🥤 <b>減少食用:</b> 生命 -5, 分數 -15 (需 3 發子彈消滅，油炸食物、飲料)</li>
+                    <li>🐛🦖👽 <b>怪物:</b> 生命 -10, 分數 -20 (需 5 發子彈消滅，蟲、恐龍、異形)</li>
+                    <li>🛸 <b>飛碟危機:</b> 分數達50分會出現1台飛碟投擲炸彈💣！被炸到生命直接歸零！</li>
+                    <li><b>通關條件:</b> 總分達 <span class="text-yellow-400 font-bold">100分</span> 尋找並觸碰終點旗子 🚩</li>
+                    <li><b>失敗條件:</b> 生命線 ≤ 0 或 100秒 時間倒數結束</li>
+                </ul>
+            </div>
+
+            <input type="text" id="player-name" placeholder="請輸入您的姓名" class="px-4 py-3 rounded-lg text-black font-bold mb-4 text-center w-64 focus:outline-none focus:ring-4 focus:ring-green-500" maxlength="10">
+            
+            <button id="start-btn" class="px-8 py-3 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold rounded-full text-xl shadow-lg transform transition hover:scale-105 animate-pulse-fast">
+                開始遊戲
+            </button>
+        </div>
+
+        <!-- 結束/過關畫面 -->
+        <div id="end-screen" class="overlay hidden">
+            <h1 id="end-title" class="text-5xl font-black mb-2 text-center"></h1>
+            <p id="end-msg" class="text-xl text-gray-300 mb-6"></p>
+            
+            <div class="bg-gray-800 p-6 rounded-xl mb-6 border border-gray-600 shadow-2xl min-w-[300px]">
+                <h3 class="text-2xl font-bold text-yellow-400 mb-4 text-center">英雄榜</h3>
+                <ol id="leaderboard" class="space-y-2 text-lg"></ol>
+            </div>
+
+            <button id="restart-btn" class="px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full text-xl shadow-lg transform transition hover:scale-105">
+                重新開始
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 遊戲音效系統 (使用 Web Audio API 合成，免載入外部檔案) ---
+        class AudioSystem {
+            constructor() {
+                this.ctx = null;
+                this.enabled = false;
+            }
+            init() {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.enabled = true;
+            }
+            playTone(freq, type, duration, vol=0.1) {
+                if (!this.enabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+            jump() { this.playTone(400, 'sine', 0.3, 0.1); setTimeout(() => this.playTone(600, 'sine', 0.2, 0.1), 50); }
+            shoot() { this.playTone(800, 'square', 0.1, 0.05); }
+            eatFruit() { this.playTone(880, 'sine', 0.1, 0.1); setTimeout(() => this.playTone(1100, 'sine', 0.2, 0.1), 100); }
+            getGun() { this.playTone(440, 'triangle', 0.1, 0.1); setTimeout(() => this.playTone(660, 'triangle', 0.3, 0.1), 100); }
+            hurt() { this.playTone(150, 'sawtooth', 0.4, 0.2); }
+            hitEnemy() { this.playTone(200, 'square', 0.1, 0.1); }
+            firework() { 
+                this.playTone(600 + Math.random()*400, 'sine', 0.1, 0.1); 
+                setTimeout(() => this.playTone(200, 'sawtooth', 0.3, 0.1), 100); 
+            }
+            win() { 
+                [523, 659, 783, 1046].forEach((f, i) => {
+                    setTimeout(() => this.playTone(f, 'sine', 0.3, 0.15), i * 150);
+                });
+            }
+            lose() {
+                [300, 250, 200, 150].forEach((f, i) => {
+                    setTimeout(() => this.playTone(f, 'sawtooth', 0.4, 0.2), i * 300);
+                });
+            }
+        }
+        const audio = new AudioSystem();
+
+        // --- 排行榜系統 (localStorage) ---
+        const Leaderboard = {
+            save: function(name, score) {
+                let board = JSON.parse(localStorage.getItem('dongbao_leaderboard') || '[]');
+                board.push({name: name || '無名英雄', score: score});
+                board.sort((a, b) => b.score - a.score);
+                board = board.slice(0, 5); // 只保留前五名
+                localStorage.setItem('dongbao_leaderboard', JSON.stringify(board));
+            },
+            getHTML: function() {
+                let board = JSON.parse(localStorage.getItem('dongbao_leaderboard') || '[]');
+                if(board.length === 0) return "<li class='text-gray-400 text-center'>尚無紀錄</li>";
+                return board.map((entry, i) => 
+                    `<li class="flex justify-between border-b border-gray-700 pb-1">
+                        <span><span class="text-gray-400 w-6 inline-block">${i+1}.</span> ${entry.name}</span>
+                        <span class="text-yellow-400 font-bold">${entry.score} 分</span>
+                    </li>`
+                ).join('');
+            }
+        };
+
+        // --- 遊戲引擎與邏輯 ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // UI 元素
+        const startScreen = document.getElementById('start-screen');
+        const endScreen = document.getElementById('end-screen');
+        const uiLayer = document.getElementById('ui-layer');
+        const mobileControls = document.getElementById('mobile-controls');
+        
+        // 遊戲常數
+        const GRAVITY = 1500;
+        const JUMP_FORCE = -650;
+        const PLAYER_SPEED = 350;
+        const MAX_HEALTH = 30;
+        const TIME_LIMIT = 100;
+        
+        // 按鍵追蹤
+        const keys = { ArrowUp: false, ArrowLeft: false, ArrowRight: false, Space: false };
+
+        class Game {
+            constructor(playerName) {
+                this.playerName = playerName;
+                this.state = 'playing'; // playing, win, lose
+                this.lastTime = performance.now();
+                
+                // 玩家狀態
+                this.player = {
+                    x: 100, y: 300, width: 40, height: 60,
+                    vx: 0, vy: 0, isGrounded: false,
+                    health: MAX_HEALTH, score: 0, ammo: 0,
+                    lastShootTime: 0, dir: 1
+                };
+                
+                this.camera = { x: 0 };
+                this.timeLeft = TIME_LIMIT;
+                this.lastSecond = performance.now();
+                
+                this.platforms = [];
+                this.entities = []; // 水果, 垃圾, 怪物, 槍, 旗子
+                this.bullets = [];
+                this.particles = [];
+                this.bombs = []; // 儲存炸彈
+                this.ufos = []; // 改為陣列以支援多台飛碟
+                
+                // 天使與空投水果機制
+                this.angels = [];
+                this.fallingFruits = [];
+                this.angelSpawnTimer = 1 + Math.random() * 4; // 開局 1~5 秒後出現第一隻天使
+                
+                this.flagSpawned = false;
+                this.furthestX = 0; // 用於程序化生成關卡
+
+                // 初始地板
+                this.platforms.push({ x: -1000, y: 480, w: 3000, h: 60 });
+                this.generateLevelChunks(1500);
+
+                this.bindControls();
+                this.updateUI();
+                
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            generateLevelChunks(targetX) {
+                while (this.furthestX < targetX) {
+                    let startX = this.furthestX + 100 + Math.random() * 200;
+                    let width = 100 + Math.random() * 300;
+                    let y = 350 + Math.random() * 100; // 高低不平的平台
+                    
+                    this.platforms.push({ x: startX, y: y, w: width, h: 30 });
+                    
+                    // 在平台上隨機生成東西
+                    if (Math.random() > 0.3) {
+                        let entityType = Math.random();
+                        let ex = startX + width / 2;
+                        let ey = y - 40;
+                        
+                        if (entityType < 0.3) {
+                            const fruits = ['🥭', '🍒', '🍋'];
+                            const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
+                            this.entities.push({ type: 'fruit', x: ex, y: ey, w: 30, h: 30, emoji: randomFruit });
+                        } else if (entityType < 0.6) {
+                            const junks = ['🍔', '🍟', '🍗', '🥤', '🧋'];
+                            const randomJunk = junks[Math.floor(Math.random() * junks.length)];
+                            this.entities.push({ type: 'junk', x: ex, y: ey, w: 40, h: 40, emoji: randomJunk, hp: 3 });
+                        } else if (entityType < 0.9) {
+                            const monsters = ['🐛', '🦖', '👽'];
+                            const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
+                            this.entities.push({ type: 'monster', x: ex, y: ey, w: 50, h: 50, emoji: randomMonster, hp: 5, vx: -50 });
+                        } else {
+                            this.entities.push({ type: 'gun', x: ex, y: ey, w: 35, h: 35, emoji: '🔫' });
+                        }
+                    }
+                    
+                    // 填補下方地板避免一直摔死 (但有時會有坑)
+                    if (Math.random() > 0.2) {
+                        this.platforms.push({ x: startX - 50, y: 480, w: width + 200, h: 60 });
+                    }
+
+                    this.furthestX = startX + width;
+                }
+            }
+
+            bindControls() {
+                // 鍵盤
+                this.keydownHandler = (e) => {
+                    if(e.code === 'ArrowUp') keys.ArrowUp = true;
+                    if(e.code === 'ArrowLeft') keys.ArrowLeft = true;
+                    if(e.code === 'ArrowRight') keys.ArrowRight = true;
+                    if(e.code === 'Space') keys.Space = true;
+                };
+                this.keyupHandler = (e) => {
+                    if(e.code === 'ArrowUp') keys.ArrowUp = false;
+                    if(e.code === 'ArrowLeft') keys.ArrowLeft = false;
+                    if(e.code === 'ArrowRight') keys.ArrowRight = false;
+                    if(e.code === 'Space') keys.Space = false;
+                };
+                window.addEventListener('keydown', this.keydownHandler);
+                window.addEventListener('keyup', this.keyupHandler);
+
+                // 手機觸控
+                const bindTouch = (id, key) => {
+                    const el = document.getElementById(id);
+                    if(!el) return;
+                    el.ontouchstart = (e) => { e.preventDefault(); keys[key] = true; };
+                    el.ontouchend = (e) => { e.preventDefault(); keys[key] = false; };
+                };
+                bindTouch('btn-left', 'ArrowLeft');
+                bindTouch('btn-right', 'ArrowRight');
+                bindTouch('btn-up', 'ArrowUp');
+                bindTouch('btn-shoot', 'Space');
+            }
+
+            cleanup() {
+                window.removeEventListener('keydown', this.keydownHandler);
+                window.removeEventListener('keyup', this.keyupHandler);
+                keys.ArrowUp = keys.ArrowLeft = keys.ArrowRight = keys.Space = false;
+            }
+
+            updateScore(amount) {
+                this.player.score += amount;
+                if (this.player.score < 0) this.player.score = 0;
+            }
+
+            updateHealth(amount) {
+                this.player.health += amount;
+                if (this.player.health > MAX_HEALTH) this.player.health = MAX_HEALTH;
+                if (this.player.health <= 0) {
+                    this.player.health = 0;
+                    this.gameOver(false, "生命線歸零");
+                }
+            }
+
+            shoot() {
+                const now = performance.now();
+                if (this.player.ammo > 0 && now - this.player.lastShootTime > 200) {
+                    this.player.ammo--;
+                    this.player.lastShootTime = now;
+                    audio.shoot();
+                    let dir = this.player.dir;
+
+                    this.bullets.push({
+                        x: this.player.x + this.player.width / 2 + (dir * 20),
+                        y: this.player.y + 25,
+                        w: 10, h: 4,
+                        vx: dir * 800
+                    });
+                }
+            }
+
+            createParticles(x, y, color) {
+                for(let i=0; i<5; i++) {
+                    this.particles.push({
+                        x, y, w: 4, h: 4,
+                        vx: (Math.random()-0.5)*200,
+                        vy: (Math.random()-1)*200,
+                        life: 1, color: color, type: 'normal'
+                    });
+                }
+            }
+
+            createFirework(x, y) {
+                audio.firework();
+                const colors = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#FEF08A'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                for(let i=0; i<40; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 150 + 50;
+                    this.particles.push({
+                        x: x, y: y, w: 6, h: 6,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 1.5 + Math.random(),
+                        color: color,
+                        type: 'firework'
+                    });
+                }
+            }
+
+            loop(timestamp) {
+                if (this.state === 'lose' || this.state === 'win') return;
+
+                const dt = (timestamp - this.lastTime) / 1000;
+                this.lastTime = timestamp;
+
+                if (this.state === 'playing') {
+                    // 倒數計時
+                    if (timestamp - this.lastSecond > 1000) {
+                        this.timeLeft--;
+                        this.lastSecond = timestamp;
+                        if (this.timeLeft <= 0) {
+                            this.gameOver(false, "時間到！未達終點。");
+                            return;
+                        }
+                    }
+
+                    // --- 物理與輸入 ---
+                    // 水平移動
+                    if (keys.ArrowLeft) {
+                        this.player.vx = -PLAYER_SPEED;
+                        this.player.dir = -1;
+                    } else if (keys.ArrowRight) {
+                        this.player.vx = PLAYER_SPEED;
+                        this.player.dir = 1;
+                    } else {
+                        this.player.vx = 0;
+                    }
+
+                    // 跳躍
+                    if (keys.ArrowUp && this.player.isGrounded) {
+                        this.player.vy = JUMP_FORCE;
+                        this.player.isGrounded = false;
+                        audio.jump();
+                        keys.ArrowUp = false; // 避免連跳
+                    }
+
+                    // 射擊
+                    if (keys.Space) {
+                        this.shoot();
+                        keys.Space = false; // 單發
+                    }
+                } else {
+                    // win_anim 狀態下停止玩家輸入
+                    this.player.vx = 0;
+                }
+
+                // 套用重力
+                this.player.vy += GRAVITY * dt;
+
+                // 預計移動位置
+                let nextX = this.player.x + this.player.vx * dt;
+                let nextY = this.player.y + this.player.vy * dt;
+
+                // 邊界限制 (不能往左走出畫面)
+                if (nextX < this.camera.x) nextX = this.camera.x;
+
+                // --- 碰撞偵測 (AABB) ---
+                this.player.isGrounded = false;
+                for (let plat of this.platforms) {
+                    // X 軸碰撞 (簡化版：不處理側面擠壓，只處理上下站立)
+                    // 判斷玩家在 X 軸上與平台重疊
+                    if (nextX < plat.x + plat.w && nextX + this.player.width > plat.x) {
+                        // 從上方掉落到平台上
+                        if (this.player.y + this.player.height <= plat.y && nextY + this.player.height >= plat.y) {
+                            nextY = plat.y - this.player.height;
+                            this.player.vy = 0;
+                            this.player.isGrounded = true;
+                        }
+                        // 從下方頂到平台
+                        else if (this.player.y >= plat.y + plat.h && nextY <= plat.y + plat.h) {
+                            nextY = plat.y + plat.h;
+                            this.player.vy = 0;
+                        }
+                    }
+                }
+
+                this.player.x = nextX;
+                this.player.y = nextY;
+
+                // 掉出畫面外
+                if (this.player.y > 600) {
+                    this.gameOver(false, "摔進了深淵");
+                    return;
+                }
+
+                // --- 天使與空投水果邏輯 ---
+                if (this.angels.length === 0) {
+                    this.angelSpawnTimer -= dt;
+                    if (this.angelSpawnTimer <= 0) {
+                        this.angels.push({
+                            x: this.camera.x - 100, // 從畫面左邊外側出現
+                            y: 40 + Math.random() * 60, // 天空隨機高度
+                            vx: 200 + Math.random() * 100, // 向右飛行的速度
+                            vy: 0,
+                            dropX: this.camera.x + 150 + Math.random() * 500, // 隨機在畫面中投下水果的位置
+                            hasDropped: false,
+                            emoji: '👼'
+                        });
+                    }
+                }
+
+                // 更新天使狀態
+                for (let i = this.angels.length - 1; i >= 0; i--) {
+                    let angel = this.angels[i];
+                    angel.x += angel.vx * dt;
+                    angel.y += angel.vy * dt + Math.sin(timestamp * 0.01 + i) * 0.5; // 上下微微浮動
+
+                    // 天使到達指定位置投擲水果
+                    if (!angel.hasDropped && angel.x >= angel.dropX) {
+                        const fruits = ['🥭', '🍒', '🍋'];
+                        const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
+                        this.fallingFruits.push({ 
+                            x: angel.x, y: angel.y + 30, w: 30, h: 30, vy: 0, emoji: randomFruit 
+                        });
+                        angel.hasDropped = true;
+                        angel.vy = -150; // 投完水果後往上飛
+                        angel.vx += 150; // 加速離開畫面
+                    }
+
+                    // 飛出畫面外則移除，並啟動下一次出現的倒數計時 (1~5秒)
+                    if (angel.x > this.camera.x + canvas.width + 100 || angel.y < -100) {
+                        this.angels.splice(i, 1);
+                        this.angelSpawnTimer = 1 + Math.random() * 4; // 設定下一次出現間隔為 1~5 秒
+                    }
+                }
+
+                // 更新掉落的水果
+                for (let i = this.fallingFruits.length - 1; i >= 0; i--) {
+                    let f = this.fallingFruits[i];
+                    f.vy += GRAVITY * 0.25 * dt; // 掉落速度比炸彈慢，像飄下來
+                    f.y += f.vy * dt;
+
+                    // 檢查與玩家碰撞
+                    if (this.isColliding(this.player, f)) {
+                        audio.eatFruit();
+                        this.updateHealth(10);
+                        this.updateScore(30);
+                        this.createParticles(f.x, f.y, '#34D399');
+                        this.fallingFruits.splice(i, 1);
+                        continue;
+                    }
+
+                    // 掉到畫面外移除
+                    if (f.y > 600) {
+                        this.fallingFruits.splice(i, 1);
+                    }
+                }
+
+                // --- 飛碟與炸彈邏輯 ---
+                let targetUfoCount = 0;
+                if (this.player.score >= 50) targetUfoCount = 1; // 50分以上 1台
+
+                // 根據目標數量產生飛碟
+                while (this.ufos.length < targetUfoCount) {
+                    this.ufos.push({
+                        timer: 1.0 + Math.random() * 2.0,
+                        x: 0,
+                        y: 80,
+                        offset: this.ufos.length * Math.PI // 讓飛碟移動的相位交錯，避免重疊
+                    });
+                }
+                
+                for (let i = 0; i < this.ufos.length; i++) {
+                    let ufo = this.ufos[i];
+                    // 飛碟在畫面上方左右盤旋 (加上 offset 產生交錯)
+                    ufo.x = this.camera.x + canvas.width / 2 - 100 + Math.sin(timestamp / 600 + ufo.offset) * 350;
+                    ufo.y = 80 + Math.cos(timestamp / 400 + ufo.offset) * 20;
+
+                    ufo.timer -= dt;
+                    if (ufo.timer <= 0) {
+                        // 投下炸彈
+                        this.bombs.push({ x: ufo.x, y: ufo.y + 30, w: 30, h: 30, vy: 0, emoji: '💣' });
+                        ufo.timer = 1.0 + Math.random() * 2.0; // 隨機 1 ~ 3 秒投一顆
+                    }
+                }
+
+                // 炸彈更新
+                for (let i = this.bombs.length - 1; i >= 0; i--) {
+                    let b = this.bombs[i];
+                    b.vy += GRAVITY * 0.4 * dt; // 炸彈掉落速度慢一點
+                    b.y += b.vy * dt;
+
+                    // 檢查炸彈與玩家碰撞
+                    if (this.isColliding(this.player, b)) {
+                        audio.hurt();
+                        this.createParticles(b.x, b.y, '#EF4444');
+                        this.updateHealth(-MAX_HEALTH); // 直接歸零
+                        this.bombs.splice(i, 1);
+                        continue;
+                    }
+
+                    // 超出畫面則移除
+                    if (b.y > 600) {
+                        this.bombs.splice(i, 1);
+                    }
+                }
+
+                // 攝影機跟隨
+                if (this.player.x > this.camera.x + 300) {
+                    this.camera.x = this.player.x - 300;
+                }
+
+                // 動態生成關卡
+                this.generateLevelChunks(this.camera.x + 1200);
+
+                // 生成終點旗子條件：超過100分
+                if (this.player.score >= 100 && !this.flagSpawned) {
+                    this.flagSpawned = true;
+                    // 生成在前方一段距離的平台上
+                    let flagX = this.player.x + 800;
+                    this.platforms.push({ x: flagX - 50, y: 480, w: 200, h: 60 });
+                    this.entities.push({ type: 'flag', x: flagX, y: 180, w: 40, h: 300, flagY: 440, state: 'idle' });
+                    // UI 提示
+                    document.getElementById('ui-goal').innerHTML = "<span class='text-green-400 animate-pulse'>終點已出現！快衝！</span>";
+                }
+
+                // --- 勝利動畫與煙火邏輯 ---
+                let flag = this.entities.find(e => e.type === 'flag');
+                if (this.state === 'win_anim' && flag) {
+                    if (flag.state === 'raising') {
+                        flag.flagY -= 150 * dt; // 旗子上升
+                        if (flag.flagY <= flag.y + 15) {
+                            flag.flagY = flag.y + 15;
+                            flag.state = 'fireworks';
+                            this.winTimer = 3.5; // 煙火施放 3.5 秒
+                        }
+                    } else if (flag.state === 'fireworks') {
+                        this.winTimer -= dt;
+                        if (Math.random() < 0.15) {
+                            this.createFirework(
+                                this.camera.x + canvas.width/2 + (Math.random() - 0.5) * 500,
+                                50 + Math.random() * 250
+                            );
+                        }
+                        if (this.winTimer <= 0) {
+                            this.gameOver(true, "成功抵達終點！");
+                            return;
+                        }
+                    }
+                }
+
+                // --- 更新實體與碰撞 ---
+                for (let i = this.entities.length - 1; i >= 0; i--) {
+                    let ent = this.entities[i];
+                    
+                    // 怪物移動
+                    if (ent.type === 'monster') {
+                        ent.x += ent.vx * dt;
+                        // 簡單的左右巡邏 (遇到邊界或走遠就反轉)
+                        if (Math.random() < 0.01) ent.vx *= -1; 
+                    }
+
+                    // 檢查玩家與實體碰撞
+                    if (this.isColliding(this.player, ent)) {
+                        if (ent.type === 'fruit') {
+                            audio.eatFruit();
+                            this.updateHealth(10);
+                            this.updateScore(30);
+                            this.createParticles(ent.x, ent.y, '#34D399');
+                            this.entities.splice(i, 1);
+                        } else if (ent.type === 'gun') {
+                            audio.getGun();
+                            this.player.ammo += 20;
+                            this.updateScore(10);
+                            this.createParticles(ent.x, ent.y, '#60A5FA');
+                            this.entities.splice(i, 1);
+                        } else if (ent.type === 'junk') {
+                            audio.hurt();
+                            this.updateHealth(-5);
+                            this.updateScore(-15);
+                            this.createParticles(ent.x, ent.y, '#F87171');
+                            this.entities.splice(i, 1);
+                            // 加上擊退效果
+                            this.player.vx = -300; this.player.vy = -300;
+                        } else if (ent.type === 'monster') {
+                            audio.hurt();
+                            this.updateHealth(-10);
+                            this.updateScore(-20);
+                            this.createParticles(ent.x, ent.y, '#A78BFA');
+                            this.entities.splice(i, 1);
+                            this.player.vx = -400; this.player.vy = -300;
+                        } else if (ent.type === 'flag' && this.state === 'playing') {
+                            this.state = 'win_anim';
+                            ent.state = 'raising';
+                            this.player.x = ent.x - this.player.width; // 讓主角停在旗杆前
+                        }
+                    }
+                }
+
+                // --- 子彈更新與碰撞 ---
+                for (let i = this.bullets.length - 1; i >= 0; i--) {
+                    let b = this.bullets[i];
+                    b.x += b.vx * dt;
+                    
+                    // 移除超出畫面的子彈
+                    if (b.x > this.camera.x + 1000 || b.x < this.camera.x - 100) {
+                        this.bullets.splice(i, 1);
+                        continue;
+                    }
+
+                    // 子彈打擊實體
+                    let hit = false;
+                    for (let j = this.entities.length - 1; j >= 0; j--) {
+                        let ent = this.entities[j];
+                        if ((ent.type === 'junk' || ent.type === 'monster') && this.isColliding(b, ent)) {
+                            audio.hitEnemy();
+                            ent.hp--;
+                            this.createParticles(b.x, b.y, '#FBBF24');
+                            if (ent.hp <= 0) {
+                                this.entities.splice(j, 1);
+                            }
+                            this.bullets.splice(i, 1);
+                            hit = true;
+                            break;
+                        }
+                    }
+                    // 子彈打到牆 (略過，為保持簡單)
+                }
+
+                // --- 粒子更新 ---
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    let p = this.particles[i];
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    
+                    if (p.type === 'firework') {
+                        p.vy += GRAVITY * 0.1 * dt; // 煙火些微受到重力影響
+                        p.life -= dt * 0.8;
+                    } else {
+                        p.life -= dt * 2;
+                    }
+                    
+                    if (p.life <= 0) this.particles.splice(i, 1);
+                }
+
+                this.updateUI();
+                this.draw(timestamp);
+
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            isColliding(rect1, rect2) {
+                // 兼容 width/height 與 w/h 兩種屬性命名方式
+                const w1 = rect1.width || rect1.w;
+                const h1 = rect1.height || rect1.h;
+                const w2 = rect2.width || rect2.w;
+                const h2 = rect2.height || rect2.h;
+
+                return rect1.x < rect2.x + w2 &&
+                       rect1.x + w1 > rect2.x &&
+                       rect1.y < rect2.y + h2 &&
+                       rect1.y + h1 > rect2.y;
+            }
+
+            draw(timestamp = performance.now()) {
+                // 清除背景 (畫布大小)
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // --- 2. 遠景：雲朵 (視差 0.1) ---
+                ctx.save();
+                ctx.translate(-this.camera.x * 0.1, 0);
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                for(let i=0; i<30; i++) {
+                    let cx = (i * 300);
+                    let cy = 80 + (i % 5) * 30;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 40, 0, Math.PI*2);
+                    ctx.arc(cx+40, cy, 50, 0, Math.PI*2);
+                    ctx.arc(cx+80, cy, 40, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                // --- 3. 背景：高山 (視差 0.2) ---
+                ctx.save();
+                ctx.translate(-this.camera.x * 0.2, 0);
+                ctx.fillStyle = '#658B6F'; // 遠山顏色 (偏藍綠)
+                ctx.beginPath();
+                ctx.moveTo(-500, canvas.height);
+                for(let i=-2; i<50; i++) {
+                    let mx = i * 400;
+                    let my = 180 + Math.abs(Math.sin(i * 13.5)) * 150; 
+                    ctx.lineTo(mx, my);
+                    ctx.lineTo(mx + 200, canvas.height);
+                }
+                ctx.fill();
+                ctx.restore();
+
+                // --- 4. 背景：瀑布與近山 (視差 0.3) ---
+                ctx.save();
+                ctx.translate(-this.camera.x * 0.3, 0);
+                for(let i=-1; i<40; i++) {
+                    let wx = i * 600 + 300;
+                    let wy = 220 + Math.sin(i * 7) * 80;
+                    
+                    // 畫一座近山來襯托瀑布
+                    ctx.fillStyle = '#4A6B53'; // 近山顏色 (較深綠)
+                    ctx.beginPath();
+                    ctx.moveTo(wx - 200, canvas.height);
+                    ctx.lineTo(wx + 30, wy - 20); // 山頂
+                    ctx.lineTo(wx + 250, canvas.height);
+                    ctx.fill();
+
+                    // 畫瀑布 (一半的山有瀑布)
+                    if (i % 2 === 0) { 
+                        ctx.fillStyle = '#87CEFA'; // 瀑布水色
+                        ctx.fillRect(wx, wy, 60, canvas.height - wy);
+                        
+                        // 瀑布動態水花
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                        let h = canvas.height - wy;
+                        let foamY1 = wy + ((timestamp * 0.15) % h);
+                        let foamY2 = wy + ((timestamp * 0.2 + 100) % h);
+                        let foamY3 = wy + ((timestamp * 0.1 + 50) % h);
+                        ctx.fillRect(wx + 10, foamY1, 4, 40);
+                        ctx.fillRect(wx + 30, foamY2, 6, 60);
+                        ctx.fillRect(wx + 45, foamY3, 4, 30);
+                    }
+                }
+                ctx.restore();
+
+                // --- 5. 中景：野外叢林 (視差 0.5) ---
+                ctx.save();
+                ctx.translate(-this.camera.x * 0.5, 0);
+                for(let i=-2; i<60; i++) {
+                    let tx = i * 200 + (Math.sin(i * 11) * 100);
+                    let ty = 320 + (Math.cos(i * 5) * 40);
+                    
+                    // 樹幹
+                    ctx.fillStyle = '#5C4033';
+                    ctx.fillRect(tx + 40, ty, 20, canvas.height - ty);
+                    
+                    // 樹冠 (熱帶叢林感覺)
+                    ctx.fillStyle = '#228B22';
+                    ctx.beginPath();
+                    ctx.arc(tx + 50, ty + 10, 60, 0, Math.PI*2);
+                    ctx.arc(tx + 10, ty + 40, 50, 0, Math.PI*2);
+                    ctx.arc(tx + 90, ty + 40, 50, 0, Math.PI*2);
+                    ctx.fill();
+                    
+                    // 增加深色葉片層次
+                    ctx.fillStyle = '#006400';
+                    ctx.beginPath();
+                    ctx.arc(tx + 50, ty + 50, 40, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                // --- 6. 前景：遊戲實體與平台 (視差 1.0) ---
+                ctx.save();
+                // 應用攝影機位移
+                ctx.translate(-this.camera.x, 0);
+
+                // 畫平台 (綠色草地，棕色泥土)
+                for (let plat of this.platforms) {
+                    // 如果在畫面外太多就不畫
+                    if (plat.x + plat.w < this.camera.x || plat.x > this.camera.x + canvas.width) continue;
+                    
+                    ctx.fillStyle = '#8B4513'; // 泥土
+                    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                    ctx.fillStyle = '#32CD32'; // 草地
+                    ctx.fillRect(plat.x, plat.y, plat.w, 8);
+                }
+
+                // 畫實體 (Emoji)
+                ctx.font = '30px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                for (let ent of this.entities) {
+                    if (ent.x + ent.w < this.camera.x || ent.x > this.camera.x + canvas.width) continue;
+                    
+                    if (ent.type === 'flag') {
+                        // 畫旗桿
+                        ctx.fillStyle = '#D1D5DB';
+                        ctx.fillRect(ent.x + 15, ent.y, 10, ent.h);
+                        
+                        // 畫旗桿頂端金球
+                        ctx.fillStyle = '#FBBF24';
+                        ctx.beginPath();
+                        ctx.arc(ent.x + 20, ent.y, 12, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // 畫紅旗子 (會隨 flagY 移動)
+                        ctx.fillStyle = '#EF4444';
+                        ctx.beginPath();
+                        ctx.moveTo(ent.x + 25, ent.flagY);
+                        ctx.lineTo(ent.x + 80, ent.flagY + 15);
+                        ctx.lineTo(ent.x + 25, ent.flagY + 30);
+                        ctx.fill();
+                        continue;
+                    }
+                    else if (ent.type === 'monster') ctx.font = '45px Arial';
+                    else ctx.font = '30px Arial';
+
+                    ctx.fillText(ent.emoji, ent.x + ent.w/2, ent.y + ent.h/2);
+
+                    // 畫血條 (怪物和垃圾食物)
+                    if (ent.hp !== undefined) {
+                        ctx.fillStyle = 'red'; // 血條底色
+                        let maxHp = ent.type === 'monster' ? 5 : 3;
+                        let hpBarW = 30;
+                        // 畫背景紅條
+                        ctx.fillRect(ent.x + (ent.w-hpBarW)/2, ent.y - 10, hpBarW, 4);
+                        // 畫剩餘綠條
+                        ctx.fillStyle = '#10B981'; 
+                        ctx.fillRect(ent.x + (ent.w-hpBarW)/2, ent.y - 10, hpBarW * (ent.hp/maxHp), 4);
+                    }
+                }
+
+                // 畫玩家 (魔法師)
+                let state = 'idle';
+                if (timestamp - this.player.lastShootTime < 200) state = 'shoot';
+                else if (!this.player.isGrounded) state = 'jump';
+                else if (Math.abs(this.player.vx) > 0) state = 'run';
+
+                ctx.save();
+                ctx.translate(this.player.x + this.player.width / 2, this.player.y + this.player.height);
+                ctx.scale(this.player.dir, 1); // 依據面向翻轉
+
+                let bounce = 0, legAngle1 = 0, legAngle2 = 0, armAngle = 0;
+                if (state === 'run') {
+                    bounce = Math.abs(Math.sin(timestamp * 0.015)) * 4;
+                    legAngle1 = Math.sin(timestamp * 0.015) * 35;
+                    legAngle2 = -Math.sin(timestamp * 0.015) * 35;
+                    armAngle = Math.sin(timestamp * 0.015) * 20;
+                } else if (state === 'jump') {
+                    legAngle1 = -30;
+                    legAngle2 = 20;
+                    armAngle = -45;
+                } else if (state === 'shoot') {
+                    armAngle = -80;
+                }
+
+                // 紅色披風
+                ctx.fillStyle = '#B91C1C';
+                ctx.beginPath();
+                ctx.moveTo(-10, -35 - bounce);
+                let capeFlow = state === 'run' ? Math.sin(timestamp * 0.02) * 8 : (state === 'jump' ? 15 : 0);
+                ctx.lineTo(-20 - capeFlow, -10 - bounce);
+                ctx.lineTo(-5, -10 - bounce);
+                ctx.fill();
+
+                // 腳
+                ctx.fillStyle = '#1E3A8A';
+                ctx.save(); ctx.rotate(legAngle2 * Math.PI / 180); ctx.fillRect(-6, -15, 6, 15); ctx.restore();
+                ctx.save(); ctx.rotate(legAngle1 * Math.PI / 180); ctx.fillRect(0, -15, 6, 15); ctx.restore();
+
+                // 身體長袍
+                ctx.fillStyle = '#4C1D95';
+                ctx.beginPath();
+                ctx.moveTo(-14, -12 - bounce);
+                ctx.lineTo(14, -12 - bounce);
+                ctx.lineTo(10, -35 - bounce);
+                ctx.lineTo(-10, -35 - bounce);
+                ctx.fill();
+
+                // 臉部
+                ctx.fillStyle = '#FFEDD5';
+                ctx.beginPath();
+                ctx.arc(0, -42 - bounce, 11, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 眼睛
+                ctx.fillStyle = '#000';
+                ctx.beginPath(); ctx.arc(3, -44 - bounce, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(8, -44 - bounce, 2, 0, Math.PI * 2); ctx.fill();
+                
+                // 腮紅
+                ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
+                ctx.beginPath(); ctx.arc(1, -40 - bounce, 2.5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(9, -40 - bounce, 2.5, 0, Math.PI*2); ctx.fill();
+
+                // 魔法帽
+                ctx.fillStyle = '#3B82F6';
+                ctx.beginPath();
+                ctx.moveTo(-18, -48 - bounce); 
+                ctx.lineTo(18, -48 - bounce);
+                ctx.lineTo(5, -70 - bounce); 
+                ctx.fill();
+                ctx.strokeStyle = '#1E3A8A';
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(-18, -48 - bounce); ctx.lineTo(18, -48 - bounce); ctx.stroke();
+
+                // 手臂與魔杖
+                ctx.save();
+                ctx.translate(0, -30 - bounce);
+                ctx.rotate(armAngle * Math.PI / 180);
+                ctx.fillStyle = '#4C1D95';
+                ctx.fillRect(-4, 0, 8, 16);
+                ctx.fillStyle = '#FFEDD5';
+                ctx.beginPath(); ctx.arc(0, 18, 4, 0, Math.PI * 2); ctx.fill();
+                
+                // 魔杖
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(-2, 5, 4, -30);
+                
+                // 魔法星星
+                ctx.fillStyle = '#FEF08A';
+                ctx.beginPath();
+                let starScale = state === 'shoot' ? 1.5 + Math.random() * 0.5 : 1;
+                ctx.arc(0, -25, 4 * starScale, 0, Math.PI * 2);
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#FEF08A';
+                ctx.fill();
+                ctx.restore();
+
+                ctx.restore();
+
+                // 畫子彈
+                ctx.fillStyle = '#FBBF24';
+                for (let b of this.bullets) {
+                    ctx.fillRect(b.x, b.y, b.w, b.h);
+                }
+
+                // 畫天使
+                ctx.font = '50px Arial';
+                for (let angel of this.angels) {
+                    ctx.fillText(angel.emoji, angel.x + 25, angel.y + 25);
+                }
+
+                // 畫飛碟與炸彈
+                ctx.font = '60px Arial';
+                for (let ufo of this.ufos) {
+                    ctx.fillText('🛸', ufo.x + 30, ufo.y + 20);
+                }
+                
+                ctx.font = '35px Arial';
+                for (let b of this.bombs) {
+                    ctx.fillText(b.emoji, b.x + b.w/2, b.y + b.h/2);
+                }
+
+                // 畫掉落的水果 (來自天使)
+                ctx.font = '30px Arial';
+                for (let f of this.fallingFruits) {
+                    ctx.fillText(f.emoji, f.x + f.w/2, f.y + f.h/2);
+                }
+
+                // 畫粒子
+                for (let p of this.particles) {
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = Math.max(0, Math.min(1, p.life)); // 加入漸隱效果
+                    
+                    if (p.type === 'firework') {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.w/2, 0, Math.PI*2);
+                        ctx.fill();
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = p.color;
+                    } else {
+                        ctx.fillRect(p.x, p.y, p.w, p.h);
+                    }
+                    ctx.shadowBlur = 0; // 重置陰影
+                }
+                ctx.globalAlpha = 1;
+
+                ctx.restore();
+            }
+
+            updateUI() {
+                // 更新生命條
+                const healthPercent = Math.max(0, (this.player.health / MAX_HEALTH) * 100);
+                const healthBar = document.getElementById('ui-health-bar');
+                if(healthBar) {
+                    healthBar.style.width = healthPercent + '%';
+                    if (healthPercent > 50) {
+                        healthBar.className = "h-full bg-green-500 transition-all duration-300";
+                    } else if (healthPercent > 20) {
+                        healthBar.className = "h-full bg-yellow-400 transition-all duration-300";
+                    } else {
+                        healthBar.className = "h-full bg-red-500 transition-all duration-300";
+                    }
+                }
+                
+                const healthText = document.getElementById('ui-health-text');
+                if(healthText) healthText.innerText = `${this.player.health}/${MAX_HEALTH}`;
+
+                document.getElementById('ui-score').innerText = this.player.score;
+                document.getElementById('ui-ammo').innerText = this.player.ammo;
+                document.getElementById('ui-time').innerText = this.timeLeft;
+            }
+
+            gameOver(isWin, msg) {
+                this.state = isWin ? 'win' : 'lose';
+                this.cleanup();
+                
+                if (isWin) {
+                    audio.win();
+                    document.getElementById('end-title').className = "text-5xl font-black mb-2 text-center text-green-400";
+                    document.getElementById('end-title').innerText = "恭喜過關！";
+                    // 勝利額外加時間分數
+                    this.player.score += this.timeLeft;
+                    msg += `<br>剩餘時間加分: ${this.timeLeft} = 總分: <span class="text-yellow-400 font-bold">${this.player.score}</span>`;
+                } else {
+                    audio.lose();
+                    document.getElementById('end-title').className = "text-5xl font-black mb-2 text-center text-red-500";
+                    document.getElementById('end-title').innerText = "遊戲結束";
+                    msg += `<br>最終得分: <span class="text-yellow-400 font-bold">${this.player.score}</span>`;
+                }
+                
+                document.getElementById('end-msg').innerHTML = msg;
+                
+                // 儲存並顯示排行榜
+                Leaderboard.save(this.playerName, this.player.score);
+                document.getElementById('leaderboard').innerHTML = Leaderboard.getHTML();
+
+                uiLayer.classList.add('hidden');
+                mobileControls.classList.add('hidden');
+                endScreen.classList.remove('hidden');
+            }
+        }
+
+        // --- 遊戲流程控制 ---
+        let currentGame = null;
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            const nameInput = document.getElementById('player-name').value.trim() || '勇者';
+            audio.init(); // 必須在使用者點擊後初始化音效
+            
+            startScreen.classList.add('hidden');
+            uiLayer.classList.remove('hidden');
+            if (window.innerWidth < 768) mobileControls.classList.remove('hidden'); // 手機版顯示控制
+            
+            // 重置 UI 目標文字
+            document.getElementById('ui-goal').innerHTML = "目標: 100分開啟終點";
+
+            currentGame = new Game(nameInput);
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            endScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        });
+
+        // 預防空白鍵滾動網頁
+        window.addEventListener('keydown', function(e) {
+            if(e.keyCode == 32 && e.target == document.body) {
+                e.preventDefault();
+            }
+        });
+
+        // 首次載入顯示排行榜
+        document.getElementById('leaderboard').innerHTML = Leaderboard.getHTML();
+
+    </script>
+</body>
+</html>
