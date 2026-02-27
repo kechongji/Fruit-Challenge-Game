@@ -17,15 +17,26 @@
         }
         #game-container {
             position: relative;
-            width: 100%;
+            /* 讓畫面在手機平板上放到最大並維持 16:9 比例 */
+            width: min(100vw, calc(100vh * 16 / 9));
+            height: min(100vh, calc(100vw * 9 / 16));
+            /* 電腦版最大限制 */
             max-width: 960px;
-            aspect-ratio: 16/9;
+            max-height: 540px;
             margin: 0 auto;
             background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border-radius: 10px;
             overflow: hidden;
         }
+        
+        /* 手機或平板全螢幕時取消圓角，達到真正最大化無死角 */
+        @media (max-width: 960px) {
+            #game-container {
+                border-radius: 0;
+            }
+        }
+
         canvas {
             display: block;
             width: 100%;
@@ -137,7 +148,8 @@
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen m-0 p-4">
+<!-- 移除原本的 p-4 邊距，讓手機版可以完全貼齊螢幕邊緣 -->
+<body class="flex items-center justify-center min-h-screen m-0 bg-gray-900">
 
     <!-- 橫向模式提示畫面 (直向時顯示) -->
     <div id="orientation-warning">
@@ -1536,16 +1548,18 @@
             // 手機/平板點擊開始時，嘗試請求全螢幕並鎖定橫向畫面
             if (isTouchDevice) {
                 try {
-                    if (document.documentElement.requestFullscreen) {
-                        await document.documentElement.requestFullscreen();
-                    } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
-                        await document.documentElement.webkitRequestFullscreen();
+                    const docEl = document.documentElement;
+                    if (docEl.requestFullscreen) {
+                        await docEl.requestFullscreen();
+                    } else if (docEl.webkitRequestFullscreen) { /* Safari 支援 */
+                        await docEl.webkitRequestFullscreen();
                     }
+                    
                     if (screen.orientation && screen.orientation.lock) {
                         await screen.orientation.lock('landscape');
                     }
                 } catch (err) {
-                    console.log("瀏覽器不支援自動鎖定橫向，需由使用者手動旋轉設備。");
+                    console.log("瀏覽器不支援自動鎖定橫向或全螢幕，需由使用者手動旋轉設備。");
                 }
             }
             
