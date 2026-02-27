@@ -75,13 +75,13 @@
         
         /* 手機虛擬按鍵 */
         #mobile-controls {
-            position: absolute;
-            bottom: 20px; left: 0; right: 0;
+            position: fixed; /* 改為 fixed，鎖死在物理螢幕上，不隨遊戲縮放 */
+            bottom: 30px; left: 0; right: 0;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
-            padding: 0 30px;
-            z-index: 5;
+            padding: 0 40px; /* 增加邊距讓手感更好 */
+            z-index: 9999; /* 移到最上層 */
             pointer-events: none; /* 讓點擊穿透空白處 */
         }
         #mobile-controls > * {
@@ -90,7 +90,7 @@
         
         /* 虛擬搖桿 */
         #joystick-base {
-            width: 120px; height: 120px;
+            width: 140px; height: 140px; /* 放大底座 */
             background: rgba(255, 255, 255, 0.15);
             border: 2px solid rgba(255, 255, 255, 0.4);
             border-radius: 50%;
@@ -104,7 +104,7 @@
             opacity: 1;
         }
         #joystick-knob {
-            width: 50px; height: 50px;
+            width: 60px; height: 60px; /* 放大旋鈕 */
             background: rgba(255, 255, 255, 0.7);
             border-radius: 50%;
             box-shadow: 0 4px 10px rgba(0,0,0,0.4);
@@ -115,9 +115,9 @@
             background: rgba(255, 255, 255, 0.2);
             border: 2px solid rgba(255, 255, 255, 0.5);
             border-radius: 50%;
-            width: 70px; height: 70px;
+            width: 80px; height: 80px; /* 放大按鈕 */
             display: flex; align-items: center; justify-content: center;
-            font-size: 32px; user-select: none;
+            font-size: 40px; user-select: none;
             backdrop-filter: blur(5px);
             touch-action: none;
         }
@@ -212,31 +212,19 @@
                     <span class="absolute -right-6 -top-4 text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20 transform -rotate-6">🍋</span>
                     
                     <!-- 鮮豔的副標題 -->
-                    <div class="text-[10px] md:text-xs text-white px-3 py-1 rounded-full transform -rotate-3 relative z-10 tracking-wider" style="background: linear-gradient(to right, #9933FF, #FF3366); border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.6);">
+                    <div class="text-xs text-white px-3 py-1 rounded-full transform -rotate-3 relative z-10 tracking-wider" style="background: linear-gradient(to right, #9933FF, #FF3366); border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.6);">
                         花開現果闖關遊戲
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 手機控制 -->
-        <div id="mobile-controls" class="hidden">
-            <!-- 左側搖桿 -->
-            <div id="joystick-base">
-                <div id="joystick-knob"></div>
-            </div>
-            <!-- 右側射擊按鈕 -->
-            <div class="flex gap-4 mb-4 mr-4">
-                <div class="btn-control text-red-500 bg-red-500/20 border-red-400" id="btn-shoot">🎯</div>
-            </div>
-        </div>
-
-        <!-- 開始畫面 -->
+        <!-- 開始畫面 (移除手機直向排版設定，永遠保持橫向完美比例) -->
         <div id="start-screen" class="overlay">
-            <div class="flex flex-col md:flex-row items-center justify-center gap-8 w-full max-w-5xl px-4 py-4 overflow-y-auto h-full">
+            <div class="flex flex-row items-center justify-center gap-8 w-full px-8 py-4 h-full">
                 
-                <!-- 遊戲說明 (左側，手機版時排在下方) -->
-                <div class="order-2 md:order-1 bg-gray-800 bg-opacity-90 p-4 md:p-5 rounded-xl w-full max-w-md text-sm md:text-base shadow-2xl border border-gray-600">
+                <!-- 遊戲說明 (左側) -->
+                <div class="bg-gray-800 bg-opacity-90 p-5 rounded-xl w-1/2 max-w-lg text-base shadow-2xl border border-gray-600">
                     <h3 class="text-xl font-bold mb-2 text-yellow-300 border-b border-gray-600 pb-2">遊戲說明</h3>
                     <ul class="list-disc pl-5 space-y-1.5 text-gray-200">
                         <li><b>控制:</b> [↑][↓] 跳躍/飛行, [←][→] 移動, [空白鍵] 射擊</li>
@@ -251,17 +239,17 @@
                     </ul>
                 </div>
 
-                <!-- 遊戲標題、輸入姓名與開始按鈕 (右側，手機版時排在上方) -->
-                <div class="order-1 md:order-2 flex flex-col items-center justify-center w-full max-w-md">
+                <!-- 遊戲標題、輸入姓名與開始按鈕 (右側) -->
+                <div class="flex flex-col items-center justify-center w-1/2 max-w-md">
                     
                     <!-- 加上東寶水果點綴的標題區塊 -->
-                    <div class="relative w-full flex flex-col items-center justify-center">
-                        <span class="absolute left-6 md:left-2 -top-4 text-5xl drop-shadow-lg transform -rotate-12 animate-pulse-fast">🥭</span>
-                        <span class="absolute right-8 md:right-4 top-2 text-4xl drop-shadow-lg transform rotate-12 animate-pulse-fast" style="animation-delay: 0.5s;">🍒</span>
-                        <span class="absolute left-10 md:left-6 bottom-4 text-4xl drop-shadow-lg transform -rotate-6 animate-pulse-fast" style="animation-delay: 1s;">🍋</span>
+                    <div class="relative w-full flex flex-col items-center justify-center mb-6">
+                        <span class="absolute left-0 -top-4 text-5xl drop-shadow-lg transform -rotate-12 animate-pulse-fast">🥭</span>
+                        <span class="absolute right-0 top-2 text-4xl drop-shadow-lg transform rotate-12 animate-pulse-fast" style="animation-delay: 0.5s;">🍒</span>
+                        <span class="absolute left-6 bottom-4 text-4xl drop-shadow-lg transform -rotate-6 animate-pulse-fast" style="animation-delay: 1s;">🍋</span>
 
-                        <h1 class="text-5xl md:text-6xl mb-2 text-center tracking-widest drop-shadow-xl relative z-10" style="font-family: 'ZCOOL KuaiLe', cursive; color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 5px 10px rgba(0,0,0,0.8);">東寶伊甸園</h1>
-                        <h2 class="text-2xl md:text-3xl font-bold text-pink-300 mb-8 text-center drop-shadow-lg relative z-10">花開現果闖關遊戲</h2>
+                        <h1 class="text-6xl mb-2 text-center tracking-widest drop-shadow-xl relative z-10" style="font-family: 'ZCOOL KuaiLe', cursive; color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 5px 10px rgba(0,0,0,0.8);">東寶伊甸園</h1>
+                        <h2 class="text-3xl font-bold text-pink-300 mb-2 text-center drop-shadow-lg relative z-10">花開現果闖關遊戲</h2>
                     </div>
                     
                     <input type="text" id="player-name" placeholder="請輸入您的姓名" class="px-4 py-3 rounded-lg text-black font-bold text-center w-full max-w-xs focus:outline-none focus:ring-4 focus:ring-green-500 mb-4" maxlength="10">
@@ -286,6 +274,18 @@
             <button id="restart-btn" class="px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full text-xl shadow-lg transform transition hover:scale-105">
                 重新開始
             </button>
+        </div>
+    </div>
+
+    <!-- 將手機控制移出遊戲縮放容器，放在獨立的物理圖層！ -->
+    <div id="mobile-controls" class="hidden">
+        <!-- 左側搖桿 -->
+        <div id="joystick-base">
+            <div id="joystick-knob"></div>
+        </div>
+        <!-- 右側射擊按鈕 -->
+        <div class="flex gap-4 mb-4 mr-4">
+            <div class="btn-control text-red-500 bg-red-500/20 border-red-400" id="btn-shoot">🎯</div>
         </div>
     </div>
 
@@ -1523,16 +1523,12 @@
                 const centerX = baseRect.left + baseRect.width / 2;
                 const centerY = baseRect.top + baseRect.height / 2;
                 
-                // 計算手指與中心點的「螢幕真實像素差」
-                let screenDx = touch.clientX - centerX;
-                let screenDy = touch.clientY - centerY;
+                // 計算手指與中心點的「螢幕真實像素差」 (因為搖桿已移出縮放圖層，不再需要除以 scale)
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
 
-                // 關鍵修正：將「螢幕像素差」反推出「遊戲內原始像素差」(除以縮放比例)
-                let dx = screenDx / window.currentScale;
-                let dy = screenDy / window.currentScale;
-
-                // 內部固定尺寸計算 (底座 120px，旋鈕 50px -> 最大活動半徑 35px)
-                const maxDist = (120 - 50) / 2; 
+                // 內部固定尺寸計算 (底座 140px，旋鈕 60px -> 最大活動半徑 40px)
+                const maxDist = (140 - 60) / 2; 
                 const dist = Math.sqrt(dx*dx + dy*dy);
 
                 // 限制旋鈕不出界
