@@ -81,6 +81,11 @@
             display: flex; align-items: center; justify-content: center;
             touch-action: none;
             backdrop-filter: blur(4px);
+            opacity: 0.5;
+            transition: opacity 0.2s ease;
+        }
+        #joystick-base.active {
+            opacity: 1;
         }
         #joystick-knob {
             width: 50px; height: 50px;
@@ -175,12 +180,10 @@
 
         <!-- 開始畫面 -->
         <div id="start-screen" class="overlay">
-            <h1 class="text-4xl md:text-5xl mb-2 text-center tracking-widest" style="font-family: 'ZCOOL KuaiLe', cursive; color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 5px 10px rgba(0,0,0,0.8);">東寶伊甸園</h1>
-            <h2 class="text-xl md:text-2xl font-bold text-pink-300 mb-4 text-center">花開現果闖關遊戲</h2>
-            
-            <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 w-full max-w-4xl px-4">
-                <!-- 遊戲說明 (左側) -->
-                <div class="bg-gray-800 bg-opacity-90 p-4 md:p-5 rounded-xl w-full max-w-md text-sm md:text-base shadow-2xl border border-gray-600">
+            <div class="flex flex-col md:flex-row items-center justify-center gap-8 w-full max-w-5xl px-4 py-4 overflow-y-auto h-full">
+                
+                <!-- 遊戲說明 (左側，手機版時排在下方) -->
+                <div class="order-2 md:order-1 bg-gray-800 bg-opacity-90 p-4 md:p-5 rounded-xl w-full max-w-md text-sm md:text-base shadow-2xl border border-gray-600">
                     <h3 class="text-xl font-bold mb-2 text-yellow-300 border-b border-gray-600 pb-2">遊戲說明</h3>
                     <ul class="list-disc pl-5 space-y-1.5 text-gray-200">
                         <li><b>控制:</b> [↑][↓] 跳躍/飛行, [←][→] 移動, [空白鍵] 射擊</li>
@@ -195,11 +198,14 @@
                     </ul>
                 </div>
 
-                <!-- 輸入姓名與開始按鈕 (右側) -->
-                <div class="flex flex-col items-center justify-center gap-4 w-full max-w-xs">
-                    <input type="text" id="player-name" placeholder="請輸入您的姓名" class="px-4 py-3 rounded-lg text-black font-bold text-center w-full focus:outline-none focus:ring-4 focus:ring-green-500" maxlength="10">
+                <!-- 遊戲標題、輸入姓名與開始按鈕 (右側，手機版時排在上方) -->
+                <div class="order-1 md:order-2 flex flex-col items-center justify-center w-full max-w-md">
+                    <h1 class="text-5xl md:text-6xl mb-2 text-center tracking-widest drop-shadow-xl" style="font-family: 'ZCOOL KuaiLe', cursive; color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 5px 10px rgba(0,0,0,0.8);">東寶伊甸園</h1>
+                    <h2 class="text-2xl md:text-3xl font-bold text-pink-300 mb-8 text-center drop-shadow-lg">花開現果闖關遊戲</h2>
                     
-                    <button id="start-btn" class="w-full px-8 py-3 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold rounded-full text-xl shadow-lg transform transition hover:scale-105 animate-pulse-fast">
+                    <input type="text" id="player-name" placeholder="請輸入您的姓名" class="px-4 py-3 rounded-lg text-black font-bold text-center w-full max-w-xs focus:outline-none focus:ring-4 focus:ring-green-500 mb-4" maxlength="10">
+                    
+                    <button id="start-btn" class="w-full max-w-xs px-8 py-3 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold rounded-full text-xl shadow-lg transform transition hover:scale-105 animate-pulse-fast">
                         開始遊戲
                     </button>
                 </div>
@@ -319,7 +325,7 @@
                 
                 // 玩家狀態
                 this.player = {
-                    x: 100, y: 300, width: 40, height: 60,
+                    x: 250, y: 300, width: 40, height: 60,
                     vx: 0, vy: 0, isGrounded: false,
                     health: MAX_HEALTH, score: 0, ammo: 0,
                     lastShootTime: 0, dir: 1,
@@ -565,7 +571,11 @@
                 let nextY = this.player.y + this.player.vy * dt;
 
                 // 邊界限制 (不能往左走出畫面，也不能飛出頂部天空)
-                if (nextX < this.camera.x) nextX = this.camera.x;
+                // 加入左側邊距，避免主角走到左下角被手機虛擬搖桿擋住
+                const isMobile = !document.getElementById('mobile-controls').classList.contains('hidden');
+                const leftBound = this.camera.x + (isMobile ? 120 : 0);
+                
+                if (nextX < leftBound) nextX = leftBound;
                 if (nextY < 0) nextY = 0;
 
                 // --- 碰撞偵測 (AABB) ---
@@ -1393,19 +1403,20 @@
                 // 重置所有方向鍵
                 keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
 
-                // 只有推動超過一定距離才觸發移動
+                // 只有推動超過一定距離才觸發移動 (8方向判定，支援複合按鍵)
                 if (dist > maxDist * 0.2) {
                     const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-                    if (angle > -135 && angle < -45) keys.ArrowUp = true;
-                    else if (angle > 45 && angle < 135) keys.ArrowDown = true;
                     
-                    if (angle > -45 && angle < 45) keys.ArrowRight = true;
-                    else if (angle > 135 || angle < -135) keys.ArrowLeft = true;
+                    if (angle > -67.5 && angle < 67.5) keys.ArrowRight = true;
+                    if (angle > 112.5 || angle < -112.5) keys.ArrowLeft = true;
+                    if (angle > -157.5 && angle < -22.5) keys.ArrowUp = true;
+                    if (angle > 22.5 && angle < 157.5) keys.ArrowDown = true;
                 }
             };
 
             const resetJoystick = () => {
                 stickActive = false;
+                base.classList.remove('active');
                 knob.style.transform = `translate(0px, 0px)`;
                 keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
             };
@@ -1413,6 +1424,7 @@
             base.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 stickActive = true;
+                base.classList.add('active');
                 baseRect = base.getBoundingClientRect();
                 updateJoystick(e.touches[0]);
             }, {passive: false});
