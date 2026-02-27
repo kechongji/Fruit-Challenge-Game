@@ -8,22 +8,31 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap');
+        
+        /* 鎖定網頁本體，防止任何原生的滑動或彈跳，徹底避免工具列影響 */
+        html, body {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            margin: 0; padding: 0;
+            touch-action: none;
+            background-color: #111827;
+        }
+        
         body {
             font-family: 'Noto Sans TC', sans-serif;
-            background-color: #111827;
             color: white;
-            overflow: hidden;
-            touch-action: none; /* 防止手機滑動 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+
         #game-container {
             position: relative;
-            /* 讓畫面在手機平板上放到最大並維持 16:9 比例 */
-            width: min(100vw, calc(100vh * 16 / 9));
-            height: min(100vh, calc(100vw * 9 / 16));
-            /* 電腦版最大限制 */
+            /* 移除原本的 min() 寫法，改由下方的 JavaScript 動態設定完美尺寸 */
             max-width: 960px;
             max-height: 540px;
-            margin: 0 auto;
             background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border-radius: 10px;
@@ -148,8 +157,8 @@
         }
     </style>
 </head>
-<!-- 移除原本的 p-4 邊距，讓手機版可以完全貼齊螢幕邊緣 -->
-<body class="flex items-center justify-center min-h-screen m-0 bg-gray-900">
+<!-- 移除會引起高度計算錯誤的 Tailwind class (如 min-h-screen) -->
+<body>
 
     <!-- 橫向模式提示畫面 (直向時顯示) -->
     <div id="orientation-warning">
@@ -285,6 +294,41 @@
     </div>
 
     <script>
+        // --- 真實可視區域動態縮放 (解決手機瀏覽器工具列遮擋問題) ---
+        function resizeGame() {
+            const container = document.getElementById('game-container');
+            if (!container) return;
+            
+            const targetRatio = 16 / 9;
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight; // 這是扣除手機工具列後的「真實可視高度」
+            const windowRatio = windowWidth / windowHeight;
+
+            let finalWidth, finalHeight;
+            
+            // 如果螢幕大於預設最大值 (電腦版)
+            if (windowWidth >= 960 && windowHeight >= 540) {
+                finalWidth = 960;
+                finalHeight = 540;
+            } else if (windowRatio > targetRatio) {
+                // 螢幕比例比 16:9 寬 (如超寬手機)，以「高度」為基準來計算寬度
+                finalHeight = windowHeight;
+                finalWidth = finalHeight * targetRatio;
+            } else {
+                // 螢幕比例比 16:9 窄 (如較方的平板)，以「寬度」為基準來計算高度
+                finalWidth = windowWidth;
+                finalHeight = finalWidth / targetRatio;
+            }
+
+            container.style.width = finalWidth + 'px';
+            container.style.height = finalHeight + 'px';
+        }
+        
+        // 監聽視窗大小改變與螢幕旋轉
+        window.addEventListener('resize', resizeGame);
+        window.addEventListener('orientationchange', () => setTimeout(resizeGame, 200));
+        resizeGame(); // 網頁載入時立刻執行一次
+
         // --- 遊戲音效系統 (使用 Web Audio API 合成，免載入外部檔案) ---
         class AudioSystem {
             constructor() {
