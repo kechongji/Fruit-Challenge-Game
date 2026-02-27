@@ -63,23 +63,44 @@
             bottom: 20px; left: 0; right: 0;
             display: flex;
             justify-content: space-between;
-            padding: 0 20px;
+            align-items: flex-end;
+            padding: 0 30px;
             z-index: 5;
+            pointer-events: none; /* 讓點擊穿透空白處 */
         }
-        .btn-control {
-            background: rgba(255, 255, 255, 0.3);
-            border: 2px solid white;
-            border-radius: 50%;
-            width: 60px; height: 60px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px; user-select: none;
-            backdrop-filter: blur(5px);
+        #mobile-controls > * {
+            pointer-events: auto; /* 恢復按鈕區域的點擊 */
         }
-        .btn-control:active { background: rgba(255, 255, 255, 0.6); }
         
-        @media (min-width: 768px) {
-            #mobile-controls { display: none; }
+        /* 虛擬搖桿 */
+        #joystick-base {
+            width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            touch-action: none;
+            backdrop-filter: blur(4px);
         }
+        #joystick-knob {
+            width: 50px; height: 50px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+
+        .btn-control {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            width: 70px; height: 70px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px; user-select: none;
+            backdrop-filter: blur(5px);
+            touch-action: none;
+        }
+        .btn-control:active { background: rgba(255, 255, 255, 0.5); }
 
         /* 動畫 */
         @keyframes pulse {
@@ -142,42 +163,47 @@
 
         <!-- 手機控制 -->
         <div id="mobile-controls" class="hidden">
-            <div class="flex gap-4">
-                <div class="btn-control" id="btn-left">◀</div>
-                <div class="btn-control" id="btn-right">▶</div>
+            <!-- 左側搖桿 -->
+            <div id="joystick-base">
+                <div id="joystick-knob"></div>
             </div>
-            <div class="flex gap-2">
-                <div class="btn-control text-blue-500" id="btn-down">▼</div>
-                <div class="btn-control text-blue-500" id="btn-up">▲</div>
-                <div class="btn-control text-red-500" id="btn-shoot">🎯</div>
+            <!-- 右側射擊按鈕 -->
+            <div class="flex gap-4 mb-4 mr-4">
+                <div class="btn-control text-red-500 bg-red-500/20 border-red-400" id="btn-shoot">🎯</div>
             </div>
         </div>
 
         <!-- 開始畫面 -->
         <div id="start-screen" class="overlay">
             <h1 class="text-4xl md:text-5xl mb-2 text-center tracking-widest" style="font-family: 'ZCOOL KuaiLe', cursive; color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 5px 10px rgba(0,0,0,0.8);">東寶伊甸園</h1>
-            <h2 class="text-xl md:text-2xl font-bold text-pink-300 mb-6 text-center">花開現果闖關遊戲</h2>
+            <h2 class="text-xl md:text-2xl font-bold text-pink-300 mb-4 text-center">花開現果闖關遊戲</h2>
             
-            <div class="bg-gray-800 bg-opacity-90 p-6 rounded-xl max-w-md text-sm md:text-base mb-6 shadow-2xl border border-gray-600">
-                <h3 class="text-xl font-bold mb-3 text-yellow-300 border-b border-gray-600 pb-2">遊戲說明</h3>
-                <ul class="list-disc pl-5 space-y-2 text-gray-200">
-                    <li><b>控制:</b> [↑][↓] 跳躍/飛行, [←][→] 移動, [空白鍵] 射擊</li>
-                    <li>🥭🍒🍋 <b>東寶現產水果:</b> 生命 +10, 分數 +30</li>
-                    <li>👼 <b>天使降臨:</b> 天使會在空中飛行，並隨機投下神聖的水果！</li>
-                    <li>🔫 <b>槍枝:</b> 獲得 20 發子彈, 分數 +10</li>
-                    <li>🧹 <b>魔法掃把:</b> 獲得 10 秒飛行能力 (方向鍵自由移動)</li>
-                    <li>🍔🍟🥤 <b>減少食用:</b> 生命 -5, 分數 -15 (需 3 發子彈消滅)</li>
-                    <li>🐛🦖👽 <b>怪物:</b> 生命 -10, 分數 -20 (需 5 發子彈消滅)</li>
-                    <li>🛸 <b>飛碟危機:</b> 分數達50分會出現1台飛碟投擲炸彈💣！被炸直接歸零！</li>
-                    <li><b>失敗條件:</b> 生命線 ≤ 0 或 100秒 時間倒數結束</li>
-                </ul>
-            </div>
+            <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 w-full max-w-4xl px-4">
+                <!-- 遊戲說明 (左側) -->
+                <div class="bg-gray-800 bg-opacity-90 p-4 md:p-5 rounded-xl w-full max-w-md text-sm md:text-base shadow-2xl border border-gray-600">
+                    <h3 class="text-xl font-bold mb-2 text-yellow-300 border-b border-gray-600 pb-2">遊戲說明</h3>
+                    <ul class="list-disc pl-5 space-y-1.5 text-gray-200">
+                        <li><b>控制:</b> [↑][↓] 跳躍/飛行, [←][→] 移動, [空白鍵] 射擊</li>
+                        <li>🥭🍒🍋 <b>東寶現產水果:</b> 生命 +10, 分數 +30</li>
+                        <li>👼 <b>天使降臨:</b> 天使會在空中飛行，並隨機投下神聖的水果！</li>
+                        <li>🔫 <b>槍枝:</b> 獲得 20 發子彈, 分數 +10</li>
+                        <li>🧹 <b>魔法掃把:</b> 獲得 10 秒飛行能力 (方向鍵自由移動)</li>
+                        <li>🍔🍟🥤 <b>減少食用:</b> 生命 -5, 分數 -15 (需 3 發子彈消滅)</li>
+                        <li>🐛🦖👽 <b>怪物:</b> 生命 -10, 分數 -20 (需 5 發子彈消滅)</li>
+                        <li>🛸 <b>飛碟危機:</b> 分數達50分會出現1台飛碟投擲炸彈💣！被炸直接歸零！</li>
+                        <li><b>失敗條件:</b> 生命線 ≤ 0 或 100秒 時間倒數結束</li>
+                    </ul>
+                </div>
 
-            <input type="text" id="player-name" placeholder="請輸入您的姓名" class="px-4 py-3 rounded-lg text-black font-bold mb-4 text-center w-64 focus:outline-none focus:ring-4 focus:ring-green-500" maxlength="10">
-            
-            <button id="start-btn" class="px-8 py-3 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold rounded-full text-xl shadow-lg transform transition hover:scale-105 animate-pulse-fast">
-                開始遊戲
-            </button>
+                <!-- 輸入姓名與開始按鈕 (右側) -->
+                <div class="flex flex-col items-center justify-center gap-4 w-full max-w-xs">
+                    <input type="text" id="player-name" placeholder="請輸入您的姓名" class="px-4 py-3 rounded-lg text-black font-bold text-center w-full focus:outline-none focus:ring-4 focus:ring-green-500" maxlength="10">
+                    
+                    <button id="start-btn" class="w-full px-8 py-3 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold rounded-full text-xl shadow-lg transform transition hover:scale-105 animate-pulse-fast">
+                        開始遊戲
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- 結束/過關畫面 -->
@@ -354,7 +380,8 @@
                         } else if (entityType < 0.8) {
                             const monsters = ['🐛', '🦖', '👽'];
                             const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
-                            this.entities.push({ type: 'monster', x: ex, y: ey, w: 50, h: 50, emoji: randomMonster, hp: 5, vx: -50 });
+                            // 將 y 座標調整為 y - 50 確保生成時貼齊地面，並加入 vy 給恐龍使用
+                            this.entities.push({ type: 'monster', x: ex, y: y - 50, w: 50, h: 50, emoji: randomMonster, hp: 5, vx: -50, vy: 0 });
                         } else if (entityType < 0.9) {
                             this.entities.push({ type: 'gun', x: ex, y: ey, w: 35, h: 35, emoji: '🔫' });
                         } else {
@@ -390,30 +417,18 @@
                 window.addEventListener('keydown', this.keydownHandler);
                 window.addEventListener('keyup', this.keyupHandler);
 
-                // 手機觸控
-                const bindTouch = (id, key) => {
-                    const el = document.getElementById(id);
-                    if(!el) return;
-                    el.ontouchstart = (e) => { e.preventDefault(); keys[key] = true; };
-                    el.ontouchend = (e) => { e.preventDefault(); keys[key] = false; };
-                };
-                bindTouch('btn-left', 'ArrowLeft');
-                bindTouch('btn-right', 'ArrowRight');
-                bindTouch('btn-up', 'ArrowUp');
-                bindTouch('btn-down', 'ArrowDown');
-                bindTouch('btn-shoot', 'Space');
+                // 手機觸控 - 射擊按鈕
+                const shootBtn = document.getElementById('btn-shoot');
+                if (shootBtn) {
+                    shootBtn.ontouchstart = (e) => { e.preventDefault(); keys.Space = true; };
+                    shootBtn.ontouchend = (e) => { e.preventDefault(); keys.Space = false; };
+                }
             }
 
             cleanup() {
                 window.removeEventListener('keydown', this.keydownHandler);
                 window.removeEventListener('keyup', this.keyupHandler);
                 keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = keys.Space = false;
-            }
-
-            cleanup() {
-                window.removeEventListener('keydown', this.keydownHandler);
-                window.removeEventListener('keyup', this.keyupHandler);
-                keys.ArrowUp = keys.ArrowLeft = keys.ArrowRight = keys.Space = false;
             }
 
             updateScore(amount) {
@@ -744,8 +759,41 @@
                     
                     // 怪物移動
                     if (ent.type === 'monster') {
-                        ent.x += ent.vx * dt;
-                        // 簡單的左右巡邏 (遇到邊界或走遠就反轉)
+                        if (ent.emoji === '🦖') {
+                            // 恐龍專屬：受重力影響並在地上走
+                            ent.vy += GRAVITY * dt;
+                            let nextX = ent.x + ent.vx * dt;
+                            let nextY = ent.y + ent.vy * dt;
+                            
+                            for (let plat of this.platforms) {
+                                if (nextX < plat.x + plat.w && nextX + ent.w > plat.x) {
+                                    if (ent.y + ent.h <= plat.y && nextY + ent.h >= plat.y) {
+                                        nextY = plat.y - ent.h;
+                                        ent.vy = 0;
+                                        
+                                        // 遇到平台邊緣就回頭 (防掉落)
+                                        if (nextX < plat.x || nextX + ent.w > plat.x + plat.w) {
+                                            ent.vx *= -1;
+                                            nextX = ent.x + ent.vx * dt;
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                            ent.x = nextX;
+                            ent.y = nextY;
+                            
+                            // 若意外掉出畫面外移除
+                            if (ent.y > 600) {
+                                this.entities.splice(i, 1);
+                                continue;
+                            }
+                        } else {
+                            // 蟲與異形在空中飄浮移動
+                            ent.x += ent.vx * dt;
+                        }
+                        
+                        // 簡單的隨機巡邏反轉
                         if (Math.random() < 0.01) ent.vx *= -1; 
                     }
 
@@ -1314,6 +1362,71 @@
 
         // --- 遊戲流程控制 ---
         let currentGame = null;
+        let joystickInitialized = false;
+
+        function initJoystick() {
+            if (joystickInitialized) return;
+            const base = document.getElementById('joystick-base');
+            const knob = document.getElementById('joystick-knob');
+            if (!base || !knob) return;
+
+            let stickActive = false;
+            let baseRect = null;
+
+            const updateJoystick = (touch) => {
+                const centerX = baseRect.left + baseRect.width / 2;
+                const centerY = baseRect.top + baseRect.height / 2;
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+
+                // 最大移動半徑 (搖桿底座半徑減去旋鈕半徑)
+                const maxDist = baseRect.width / 2 - knob.offsetWidth / 2;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist > maxDist) {
+                    dx = (dx / dist) * maxDist;
+                    dy = (dy / dist) * maxDist;
+                }
+
+                knob.style.transform = `translate(${dx}px, ${dy}px)`;
+
+                // 重置所有方向鍵
+                keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
+
+                // 只有推動超過一定距離才觸發移動
+                if (dist > maxDist * 0.2) {
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    if (angle > -135 && angle < -45) keys.ArrowUp = true;
+                    else if (angle > 45 && angle < 135) keys.ArrowDown = true;
+                    
+                    if (angle > -45 && angle < 45) keys.ArrowRight = true;
+                    else if (angle > 135 || angle < -135) keys.ArrowLeft = true;
+                }
+            };
+
+            const resetJoystick = () => {
+                stickActive = false;
+                knob.style.transform = `translate(0px, 0px)`;
+                keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
+            };
+
+            base.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                stickActive = true;
+                baseRect = base.getBoundingClientRect();
+                updateJoystick(e.touches[0]);
+            }, {passive: false});
+
+            base.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if(stickActive) updateJoystick(e.touches[0]);
+            }, {passive: false});
+
+            base.addEventListener('touchend', resetJoystick);
+            base.addEventListener('touchcancel', resetJoystick);
+            
+            joystickInitialized = true;
+        }
 
         document.getElementById('start-btn').addEventListener('click', () => {
             const nameInput = document.getElementById('player-name').value.trim() || '勇者';
@@ -1321,7 +1434,13 @@
             
             startScreen.classList.add('hidden');
             uiLayer.classList.remove('hidden');
-            if (window.innerWidth < 768) mobileControls.classList.remove('hidden'); // 手機版顯示控制
+            
+            // 偵測是否為觸控設備 (手機或平板)
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (isTouchDevice) {
+                mobileControls.classList.remove('hidden'); // 顯示虛擬控制
+                initJoystick(); // 初始化搖桿
+            }
             
             // 重置 UI 目標文字
             document.getElementById('ui-goal').innerHTML = "目標: 100分開啟終點";
