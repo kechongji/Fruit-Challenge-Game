@@ -13,7 +13,8 @@
         html, body {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            width: 100%; height: 100%;
+            width: 100vw; 
+            height: 100dvh; /* 使用 dvh (動態視窗高度) 完美對應手機工具列伸縮 */
             overflow: hidden;
             margin: 0; padding: 0;
             touch-action: none;
@@ -30,20 +31,15 @@
 
         #game-container {
             position: relative;
-            /* 移除原本的 min() 寫法，改由下方的 JavaScript 動態設定完美尺寸 */
-            max-width: 960px;
-            max-height: 540px;
+            /* 強制鎖定遊戲原始完美比例，依靠 JS 進行 Scale 縮放 */
+            width: 960px;
+            height: 540px;
             background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            /* 取消所有的自適應邊界，讓縮放更純粹 */
             border-radius: 10px;
             overflow: hidden;
-        }
-        
-        /* 手機或平板全螢幕時取消圓角，達到真正最大化無死角 */
-        @media (max-width: 960px) {
-            #game-container {
-                border-radius: 0;
-            }
+            transform-origin: center center;
         }
 
         canvas {
@@ -294,34 +290,31 @@
     </div>
 
     <script>
-        // --- 真實可視區域動態縮放 (解決手機瀏覽器工具列遮擋問題) ---
+        // 全域變數儲存當前縮放比例，給虛擬搖桿計算使用
+        window.currentScale = 1;
+
+        // --- 真實可視區域動態縮放 (完美 Scale 解決方案) ---
         function resizeGame() {
             const container = document.getElementById('game-container');
             if (!container) return;
             
-            const targetRatio = 16 / 9;
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight; // 這是扣除手機工具列後的「真實可視高度」
-            const windowRatio = windowWidth / windowHeight;
-
-            let finalWidth, finalHeight;
             
-            // 如果螢幕大於預設最大值 (電腦版)
-            if (windowWidth >= 960 && windowHeight >= 540) {
-                finalWidth = 960;
-                finalHeight = 540;
-            } else if (windowRatio > targetRatio) {
-                // 螢幕比例比 16:9 寬 (如超寬手機)，以「高度」為基準來計算寬度
-                finalHeight = windowHeight;
-                finalWidth = finalHeight * targetRatio;
-            } else {
-                // 螢幕比例比 16:9 窄 (如較方的平板)，以「寬度」為基準來計算高度
-                finalWidth = windowWidth;
-                finalHeight = finalWidth / targetRatio;
-            }
+            // 計算寬度與高度的縮放比例，取較小者，以確保畫面能「完整塞入且不裁切」
+            const scaleX = windowWidth / 960;
+            const scaleY = windowHeight / 540;
+            window.currentScale = Math.min(scaleX, scaleY);
 
-            container.style.width = finalWidth + 'px';
-            container.style.height = finalHeight + 'px';
+            // 將整個遊戲容器進行等比例縮放
+            container.style.transform = `scale(${window.currentScale})`;
+            
+            // 如果是在手機上全螢幕且比例很滿，可以取消圓角
+            if (windowWidth < 960) {
+                container.style.borderRadius = '0px';
+            } else {
+                container.style.borderRadius = '10px';
+            }
         }
         
         // 監聽視窗大小改變與螢幕旋轉
@@ -1526,15 +1519,23 @@
             let baseRect = null;
 
             const updateJoystick = (touch) => {
+                // 取得搖桿底座在螢幕上的實際位置與中心點
                 const centerX = baseRect.left + baseRect.width / 2;
                 const centerY = baseRect.top + baseRect.height / 2;
-                let dx = touch.clientX - centerX;
-                let dy = touch.clientY - centerY;
+                
+                // 計算手指與中心點的「螢幕真實像素差」
+                let screenDx = touch.clientX - centerX;
+                let screenDy = touch.clientY - centerY;
 
-                // 最大移動半徑 (搖桿底座半徑減去旋鈕半徑)
-                const maxDist = baseRect.width / 2 - knob.offsetWidth / 2;
+                // 關鍵修正：將「螢幕像素差」反推出「遊戲內原始像素差」(除以縮放比例)
+                let dx = screenDx / window.currentScale;
+                let dy = screenDy / window.currentScale;
+
+                // 內部固定尺寸計算 (底座 120px，旋鈕 50px -> 最大活動半徑 35px)
+                const maxDist = (120 - 50) / 2; 
                 const dist = Math.sqrt(dx*dx + dy*dy);
 
+                // 限制旋鈕不出界
                 if (dist > maxDist) {
                     dx = (dx / dist) * maxDist;
                     dy = (dy / dist) * maxDist;
@@ -1545,7 +1546,7 @@
                 // 重置所有方向鍵
                 keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
 
-                // 只有推動超過一定距離才觸發移動 (8方向判定，支援複合按鍵)
+                // 只有推動超過一定距離才觸發移動 (8方向判定)
                 if (dist > maxDist * 0.2) {
                     const angle = Math.atan2(dy, dx) * 180 / Math.PI;
                     
