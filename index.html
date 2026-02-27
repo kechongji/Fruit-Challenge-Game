@@ -113,9 +113,38 @@
             50% { transform: scale(1.05); }
         }
         .animate-pulse-fast { animation: pulse 1.5s infinite; }
+        
+        /* 橫向模式提示 */
+        #orientation-warning {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #111827;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+        @media (max-width: 900px) and (orientation: portrait) {
+            #orientation-warning {
+                display: flex;
+            }
+            #game-container {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen m-0 p-4">
+
+    <!-- 橫向模式提示畫面 (直向時顯示) -->
+    <div id="orientation-warning">
+        <div class="text-7xl mb-6 animate-pulse">📱🔄</div>
+        <h2 class="text-3xl font-bold text-yellow-300 mb-4 tracking-widest" style="font-family: 'ZCOOL KuaiLe', cursive;">請旋轉您的設備</h2>
+        <p class="text-lg text-gray-300 font-bold">為了獲得最佳的遊戲體驗，<br>請將您的手機或平板旋轉至「橫向」模式。</p>
+    </div>
 
     <div id="game-container">
         <!-- 畫布 -->
@@ -139,15 +168,18 @@
                 <div class="text-sm text-gray-200" id="ui-goal">目標: 100分開啟終點</div>
             </div>
             
-            <!-- 右上角 遊戲 Logo (鮮豔 + 叢林野獸插圖) -->
+            <!-- 右上角 遊戲 Logo (鮮豔 + 叢林野獸插圖 + 東寶水果) -->
             <div class="flex flex-col items-end opacity-100 mt-2 mr-4 pointer-events-auto transition-transform hover:scale-105" style="font-family: 'ZCOOL KuaiLe', cursive;">
                 <div class="relative flex items-center">
                     <!-- 叢林與野獸插圖 (Emoji 結合 CSS 陰影) -->
                     <span class="absolute -left-6 -top-2 text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-0">🌴</span>
                     <span class="absolute -left-2 -bottom-2 text-xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20">🌿</span>
                     <span class="absolute -right-4 -top-3 text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-0 transform rotate-12">🐯</span>
+                    
+                    <!-- 東寶水果 -->
+                    <span class="absolute -left-10 top-2 text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20 transform -rotate-12">🥭</span>
 
-                    <!-- 鮮豔的主標題 (修正漸層與描邊衝突問題，使用純色+多重陰影) -->
+                    <!-- 鮮豔的主標題 -->
                     <div class="text-2xl md:text-3xl tracking-widest relative z-10" style="color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 4px 4px rgba(0,0,0,0.8);">
                         東寶伊甸園
                     </div>
@@ -157,6 +189,10 @@
                     <!-- 更多插圖 -->
                     <span class="absolute -left-4 -top-2 text-xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20 transform -rotate-12">🦁</span>
                     <span class="absolute -right-2 -bottom-1 text-lg drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20">🌺</span>
+                    
+                    <!-- 東寶水果 -->
+                    <span class="absolute right-1/2 top-3 text-xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20 transform rotate-12">🍒</span>
+                    <span class="absolute -right-6 -top-4 text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-20 transform -rotate-6">🍋</span>
                     
                     <!-- 鮮豔的副標題 -->
                     <div class="text-[10px] md:text-xs text-white px-3 py-1 rounded-full transform -rotate-3 relative z-10 tracking-wider" style="background: linear-gradient(to right, #9933FF, #FF3366); border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.6);">
@@ -188,20 +224,28 @@
                     <ul class="list-disc pl-5 space-y-1.5 text-gray-200">
                         <li><b>控制:</b> [↑][↓] 跳躍/飛行, [←][→] 移動, [空白鍵] 射擊</li>
                         <li>🥭🍒🍋 <b>東寶現產水果:</b> 生命 +10, 分數 +30</li>
-                        <li>👼 <b>天使降臨:</b> 天使會在空中飛行，並隨機投下神聖的水果！</li>
-                        <li>🔫 <b>槍枝:</b> 獲得 20 發子彈, 分數 +10</li>
-                        <li>🧹 <b>魔法掃把:</b> 獲得 10 秒飛行能力 (方向鍵自由移動)</li>
-                        <li>🍔🍟🥤 <b>減少食用:</b> 生命 -5, 分數 -15 (需 3 發子彈消滅)</li>
-                        <li>🐛🦖👽 <b>怪物:</b> 生命 -10, 分數 -20 (需 5 發子彈消滅)</li>
-                        <li>🛸 <b>飛碟危機:</b> 分數達50分會出現1台飛碟投擲炸彈💣！被炸直接歸零！</li>
+                        <li>👼 <b>天使降臨:</b> 天使隨機投下神聖的水果！</li>
+                        <li>🔫 <b>槍枝:</b> 獲得 20 發子彈, 分數 <span class="text-green-400 font-bold">+20</span></li>
+                        <li>🧹 <b>魔法掃把:</b> 獲得 10 秒飛行能力</li>
+                        <li>🍔🍟🥤 <b>減少食用:</b> 生命 -5, 分數 -15 (擊毀 <span class="text-green-400 font-bold">+30分</span>，需3發)</li>
+                        <li>🐛🦖👽 <b>怪物:</b> 生命 -10, 分數 -20 (擊毀 <span class="text-green-400 font-bold">+50分</span>，需5發)</li>
+                        <li>🛸 <b>飛碟危機:</b> 達50分出現！可擊毀 <span class="text-green-400 font-bold">+50分</span>！(💣被炸直接歸零)</li>
                         <li><b>失敗條件:</b> 生命線 ≤ 0 或 100秒 時間倒數結束</li>
                     </ul>
                 </div>
 
                 <!-- 遊戲標題、輸入姓名與開始按鈕 (右側，手機版時排在上方) -->
                 <div class="order-1 md:order-2 flex flex-col items-center justify-center w-full max-w-md">
-                    <h1 class="text-5xl md:text-6xl mb-2 text-center tracking-widest drop-shadow-xl" style="font-family: 'ZCOOL KuaiLe', cursive; color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 5px 10px rgba(0,0,0,0.8);">東寶伊甸園</h1>
-                    <h2 class="text-2xl md:text-3xl font-bold text-pink-300 mb-8 text-center drop-shadow-lg">花開現果闖關遊戲</h2>
+                    
+                    <!-- 加上東寶水果點綴的標題區塊 -->
+                    <div class="relative w-full flex flex-col items-center justify-center">
+                        <span class="absolute left-6 md:left-2 -top-4 text-5xl drop-shadow-lg transform -rotate-12 animate-pulse-fast">🥭</span>
+                        <span class="absolute right-8 md:right-4 top-2 text-4xl drop-shadow-lg transform rotate-12 animate-pulse-fast" style="animation-delay: 0.5s;">🍒</span>
+                        <span class="absolute left-10 md:left-6 bottom-4 text-4xl drop-shadow-lg transform -rotate-6 animate-pulse-fast" style="animation-delay: 1s;">🍋</span>
+
+                        <h1 class="text-5xl md:text-6xl mb-2 text-center tracking-widest drop-shadow-xl relative z-10" style="font-family: 'ZCOOL KuaiLe', cursive; color: #FF3399; text-shadow: -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF, 2px 2px 0 #FFF, 0px 5px 10px rgba(0,0,0,0.8);">東寶伊甸園</h1>
+                        <h2 class="text-2xl md:text-3xl font-bold text-pink-300 mb-8 text-center drop-shadow-lg relative z-10">花開現果闖關遊戲</h2>
+                    </div>
                     
                     <input type="text" id="player-name" placeholder="請輸入您的姓名" class="px-4 py-3 rounded-lg text-black font-bold text-center w-full max-w-xs focus:outline-none focus:ring-4 focus:ring-green-500 mb-4" maxlength="10">
                     
@@ -342,6 +386,7 @@
                 this.particles = [];
                 this.bombs = []; // 儲存炸彈
                 this.ufos = []; // 改為陣列以支援多台飛碟
+                this.ufoCooldown = 0; // 飛碟被擊落後的冷卻時間
                 
                 // 天使與空投水果機制
                 this.angels = [];
@@ -671,17 +716,24 @@
                 }
 
                 // --- 飛碟與炸彈邏輯 ---
-                let targetUfoCount = 0;
-                if (this.player.score >= 50) targetUfoCount = 1; // 50分以上 1台
+                if (this.ufoCooldown > 0) {
+                    this.ufoCooldown -= dt; // 飛碟被擊落後的冷卻時間
+                } else {
+                    let targetUfoCount = 0;
+                    if (this.player.score >= 50) targetUfoCount = 1; // 50分以上 1台
 
-                // 根據目標數量產生飛碟
-                while (this.ufos.length < targetUfoCount) {
-                    this.ufos.push({
-                        timer: 1.0 + Math.random() * 2.0,
-                        x: 0,
-                        y: 80,
-                        offset: this.ufos.length * Math.PI // 讓飛碟移動的相位交錯，避免重疊
-                    });
+                    // 根據目標數量產生飛碟 (包含寬高與血量屬性，以供碰撞偵測)
+                    while (this.ufos.length < targetUfoCount) {
+                        this.ufos.push({
+                            timer: 1.0 + Math.random() * 2.0,
+                            x: 0,
+                            y: 80,
+                            w: 60,
+                            h: 60,
+                            hp: 5,
+                            offset: this.ufos.length * Math.PI // 讓飛碟移動的相位交錯，避免重疊
+                        });
+                    }
                 }
                 
                 for (let i = 0; i < this.ufos.length; i++) {
@@ -693,7 +745,7 @@
                     ufo.timer -= dt;
                     if (ufo.timer <= 0) {
                         // 投下炸彈
-                        this.bombs.push({ x: ufo.x, y: ufo.y + 30, w: 30, h: 30, vy: 0, emoji: '💣' });
+                        this.bombs.push({ x: ufo.x + 15, y: ufo.y + 30, w: 30, h: 30, vy: 0, emoji: '💣' });
                         ufo.timer = 1.0 + Math.random() * 2.0; // 隨機 1 ~ 3 秒投一顆
                     }
                 }
@@ -818,7 +870,7 @@
                         } else if (ent.type === 'gun') {
                             audio.getGun();
                             this.player.ammo += 20;
-                            this.updateScore(10);
+                            this.updateScore(20); // 吃到槍枝改成 +20分
                             this.createParticles(ent.x, ent.y, '#60A5FA');
                             this.entities.splice(i, 1);
                         } else if (ent.type === 'broom') {
@@ -861,8 +913,9 @@
                         continue;
                     }
 
-                    // 子彈打擊實體
                     let hit = false;
+                    
+                    // 子彈打擊實體 (怪物與減少食用)
                     for (let j = this.entities.length - 1; j >= 0; j--) {
                         let ent = this.entities[j];
                         if ((ent.type === 'junk' || ent.type === 'monster') && this.isColliding(b, ent)) {
@@ -870,6 +923,9 @@
                             ent.hp--;
                             this.createParticles(b.x, b.y, '#FBBF24');
                             if (ent.hp <= 0) {
+                                // 擊斃加分機制
+                                if (ent.type === 'junk') this.updateScore(30);
+                                else if (ent.type === 'monster') this.updateScore(50);
                                 this.entities.splice(j, 1);
                             }
                             this.bullets.splice(i, 1);
@@ -877,7 +933,28 @@
                             break;
                         }
                     }
-                    // 子彈打到牆 (略過，為保持簡單)
+                    if (hit) continue;
+
+                    // 子彈打擊飛碟 (和怪獸一樣可以被射擊)
+                    for (let j = this.ufos.length - 1; j >= 0; j--) {
+                        let ufo = this.ufos[j];
+                        // 為飛碟建立一個用於判斷碰撞的隱形框框 (以繪製中心點推算)
+                        let ufoBox = { x: ufo.x, y: ufo.y - 10, w: 60, h: 60 };
+                        if (this.isColliding(b, ufoBox)) {
+                            audio.hitEnemy();
+                            ufo.hp--;
+                            this.createParticles(b.x, b.y, '#FBBF24');
+                            if (ufo.hp <= 0) {
+                                this.updateScore(50); // 擊毀飛碟重賞 50 分
+                                this.createFirework(ufo.x + 30, ufo.y + 20); // 放煙火慶祝
+                                this.ufos.splice(j, 1);
+                                this.ufoCooldown = 10; // 飛碟被擊落後給予 10 秒空窗期
+                            }
+                            this.bullets.splice(i, 1);
+                            hit = true;
+                            break;
+                        }
+                    }
                 }
 
                 // --- 粒子更新 ---
@@ -1271,9 +1348,18 @@
                 }
 
                 // 畫飛碟與炸彈
-                ctx.font = '60px Arial';
                 for (let ufo of this.ufos) {
+                    ctx.font = '60px Arial';
                     ctx.fillText('🛸', ufo.x + 30, ufo.y + 20);
+                    
+                    // 畫飛碟血條
+                    if (ufo.hp !== undefined) {
+                        ctx.fillStyle = 'red';
+                        let hpBarW = 40;
+                        ctx.fillRect(ufo.x + 10, ufo.y - 20, hpBarW, 5);
+                        ctx.fillStyle = '#10B981';
+                        ctx.fillRect(ufo.x + 10, ufo.y - 20, hpBarW * (ufo.hp / 5), 5);
+                    }
                 }
                 
                 ctx.font = '35px Arial';
@@ -1440,15 +1526,32 @@
             joystickInitialized = true;
         }
 
-        document.getElementById('start-btn').addEventListener('click', () => {
+        document.getElementById('start-btn').addEventListener('click', async () => {
             const nameInput = document.getElementById('player-name').value.trim() || '勇者';
             audio.init(); // 必須在使用者點擊後初始化音效
+            
+            // 偵測是否為觸控設備 (手機或平板)
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            
+            // 手機/平板點擊開始時，嘗試請求全螢幕並鎖定橫向畫面
+            if (isTouchDevice) {
+                try {
+                    if (document.documentElement.requestFullscreen) {
+                        await document.documentElement.requestFullscreen();
+                    } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
+                        await document.documentElement.webkitRequestFullscreen();
+                    }
+                    if (screen.orientation && screen.orientation.lock) {
+                        await screen.orientation.lock('landscape');
+                    }
+                } catch (err) {
+                    console.log("瀏覽器不支援自動鎖定橫向，需由使用者手動旋轉設備。");
+                }
+            }
             
             startScreen.classList.add('hidden');
             uiLayer.classList.remove('hidden');
             
-            // 偵測是否為觸控設備 (手機或平板)
-            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             if (isTouchDevice) {
                 mobileControls.classList.remove('hidden'); // 顯示虛擬控制
                 initJoystick(); // 初始化搖桿
