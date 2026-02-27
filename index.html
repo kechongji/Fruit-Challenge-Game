@@ -108,6 +108,7 @@
                 </div>
                 <div class="text-yellow-300">總分: <span id="ui-score">0</span></div>
                 <div class="text-blue-300" id="ui-ammo-container">子彈: <span id="ui-ammo">0</span></div>
+                <div class="text-purple-300 hidden" id="ui-fly-container">飛行: <span id="ui-fly-time">0</span>s</div>
                 <div class="text-white mt-1">時間: <span id="ui-time">100</span>s</div>
                 <div class="text-sm text-gray-200" id="ui-goal">目標: 100分開啟終點</div>
             </div>
@@ -145,9 +146,10 @@
                 <div class="btn-control" id="btn-left">◀</div>
                 <div class="btn-control" id="btn-right">▶</div>
             </div>
-            <div class="flex gap-4">
-                <div class="btn-control text-red-500" id="btn-shoot">🎯</div>
+            <div class="flex gap-2">
+                <div class="btn-control text-blue-500" id="btn-down">▼</div>
                 <div class="btn-control text-blue-500" id="btn-up">▲</div>
+                <div class="btn-control text-red-500" id="btn-shoot">🎯</div>
             </div>
         </div>
 
@@ -159,14 +161,14 @@
             <div class="bg-gray-800 bg-opacity-90 p-6 rounded-xl max-w-md text-sm md:text-base mb-6 shadow-2xl border border-gray-600">
                 <h3 class="text-xl font-bold mb-3 text-yellow-300 border-b border-gray-600 pb-2">遊戲說明</h3>
                 <ul class="list-disc pl-5 space-y-2 text-gray-200">
-                    <li><b>控制:</b> [↑] 跳躍, [←][→] 移動, [空白鍵] 射擊</li>
-                    <li>🥭🍒🍋 <b>東寶現產水果:</b> 生命 +10, 分數 +30 (芒果、荔枝、檸檬)</li>
+                    <li><b>控制:</b> [↑][↓] 跳躍/飛行, [←][→] 移動, [空白鍵] 射擊</li>
+                    <li>🥭🍒🍋 <b>東寶現產水果:</b> 生命 +10, 分數 +30</li>
                     <li>👼 <b>天使降臨:</b> 天使會在空中飛行，並隨機投下神聖的水果！</li>
                     <li>🔫 <b>槍枝:</b> 獲得 20 發子彈, 分數 +10</li>
-                    <li>🍔🍟🥤 <b>減少食用:</b> 生命 -5, 分數 -15 (需 3 發子彈消滅，油炸食物、飲料)</li>
-                    <li>🐛🦖👽 <b>怪物:</b> 生命 -10, 分數 -20 (需 5 發子彈消滅，蟲、恐龍、異形)</li>
-                    <li>🛸 <b>飛碟危機:</b> 分數達50分會出現1台飛碟投擲炸彈💣！被炸到生命直接歸零！</li>
-                    <li><b>通關條件:</b> 總分達 <span class="text-yellow-400 font-bold">100分</span> 尋找並觸碰終點旗子 🚩</li>
+                    <li>🧹 <b>魔法掃把:</b> 獲得 10 秒飛行能力 (方向鍵自由移動)</li>
+                    <li>🍔🍟🥤 <b>減少食用:</b> 生命 -5, 分數 -15 (需 3 發子彈消滅)</li>
+                    <li>🐛🦖👽 <b>怪物:</b> 生命 -10, 分數 -20 (需 5 發子彈消滅)</li>
+                    <li>🛸 <b>飛碟危機:</b> 分數達50分會出現1台飛碟投擲炸彈💣！被炸直接歸零！</li>
                     <li><b>失敗條件:</b> 生命線 ≤ 0 或 100秒 時間倒數結束</li>
                 </ul>
             </div>
@@ -281,7 +283,7 @@
         const TIME_LIMIT = 100;
         
         // 按鍵追蹤
-        const keys = { ArrowUp: false, ArrowLeft: false, ArrowRight: false, Space: false };
+        const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, Space: false };
 
         class Game {
             constructor(playerName) {
@@ -294,7 +296,8 @@
                     x: 100, y: 300, width: 40, height: 60,
                     vx: 0, vy: 0, isGrounded: false,
                     health: MAX_HEALTH, score: 0, ammo: 0,
-                    lastShootTime: 0, dir: 1
+                    lastShootTime: 0, dir: 1,
+                    isFlying: false, flyTimer: 0
                 };
                 
                 this.camera = { x: 0 };
@@ -348,12 +351,14 @@
                             const junks = ['🍔', '🍟', '🍗', '🥤', '🧋'];
                             const randomJunk = junks[Math.floor(Math.random() * junks.length)];
                             this.entities.push({ type: 'junk', x: ex, y: ey, w: 40, h: 40, emoji: randomJunk, hp: 3 });
-                        } else if (entityType < 0.9) {
+                        } else if (entityType < 0.8) {
                             const monsters = ['🐛', '🦖', '👽'];
                             const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
                             this.entities.push({ type: 'monster', x: ex, y: ey, w: 50, h: 50, emoji: randomMonster, hp: 5, vx: -50 });
-                        } else {
+                        } else if (entityType < 0.9) {
                             this.entities.push({ type: 'gun', x: ex, y: ey, w: 35, h: 35, emoji: '🔫' });
+                        } else {
+                            this.entities.push({ type: 'broom', x: ex, y: ey, w: 40, h: 40, emoji: '🧹' });
                         }
                     }
                     
@@ -370,12 +375,14 @@
                 // 鍵盤
                 this.keydownHandler = (e) => {
                     if(e.code === 'ArrowUp') keys.ArrowUp = true;
+                    if(e.code === 'ArrowDown') keys.ArrowDown = true;
                     if(e.code === 'ArrowLeft') keys.ArrowLeft = true;
                     if(e.code === 'ArrowRight') keys.ArrowRight = true;
                     if(e.code === 'Space') keys.Space = true;
                 };
                 this.keyupHandler = (e) => {
                     if(e.code === 'ArrowUp') keys.ArrowUp = false;
+                    if(e.code === 'ArrowDown') keys.ArrowDown = false;
                     if(e.code === 'ArrowLeft') keys.ArrowLeft = false;
                     if(e.code === 'ArrowRight') keys.ArrowRight = false;
                     if(e.code === 'Space') keys.Space = false;
@@ -393,7 +400,14 @@
                 bindTouch('btn-left', 'ArrowLeft');
                 bindTouch('btn-right', 'ArrowRight');
                 bindTouch('btn-up', 'ArrowUp');
+                bindTouch('btn-down', 'ArrowDown');
                 bindTouch('btn-shoot', 'Space');
+            }
+
+            cleanup() {
+                window.removeEventListener('keydown', this.keydownHandler);
+                window.removeEventListener('keyup', this.keyupHandler);
+                keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = keys.Space = false;
             }
 
             cleanup() {
@@ -491,12 +505,29 @@
                         this.player.vx = 0;
                     }
 
-                    // 跳躍
-                    if (keys.ArrowUp && this.player.isGrounded) {
-                        this.player.vy = JUMP_FORCE;
-                        this.player.isGrounded = false;
-                        audio.jump();
-                        keys.ArrowUp = false; // 避免連跳
+                    // 魔法掃把飛行狀態
+                    if (this.player.isFlying) {
+                        this.player.flyTimer -= dt;
+                        if (this.player.flyTimer <= 0) {
+                            this.player.isFlying = false;
+                        }
+                        
+                        // 垂直移動 (無重力)
+                        if (keys.ArrowUp) {
+                            this.player.vy = -PLAYER_SPEED;
+                        } else if (keys.ArrowDown) {
+                            this.player.vy = PLAYER_SPEED;
+                        } else {
+                            this.player.vy = 0; 
+                        }
+                    } else {
+                        // 正常跳躍
+                        if (keys.ArrowUp && this.player.isGrounded) {
+                            this.player.vy = JUMP_FORCE;
+                            this.player.isGrounded = false;
+                            audio.jump();
+                            keys.ArrowUp = false; // 避免連跳
+                        }
                     }
 
                     // 射擊
@@ -509,15 +540,18 @@
                     this.player.vx = 0;
                 }
 
-                // 套用重力
-                this.player.vy += GRAVITY * dt;
+                // 套用重力 (僅限非飛行狀態)
+                if (!this.player.isFlying) {
+                    this.player.vy += GRAVITY * dt;
+                }
 
                 // 預計移動位置
                 let nextX = this.player.x + this.player.vx * dt;
                 let nextY = this.player.y + this.player.vy * dt;
 
-                // 邊界限制 (不能往左走出畫面)
+                // 邊界限制 (不能往左走出畫面，也不能飛出頂部天空)
                 if (nextX < this.camera.x) nextX = this.camera.x;
+                if (nextY < 0) nextY = 0;
 
                 // --- 碰撞偵測 (AABB) ---
                 this.player.isGrounded = false;
@@ -674,7 +708,7 @@
                     // 生成在前方一段距離的平台上
                     let flagX = this.player.x + 800;
                     this.platforms.push({ x: flagX - 50, y: 480, w: 200, h: 60 });
-                    this.entities.push({ type: 'flag', x: flagX, y: 180, w: 40, h: 300, flagY: 440, state: 'idle' });
+                    this.entities.push({ type: 'flag', x: flagX, y: 180, w: 40, h: 300, flagY: 410, state: 'idle' });
                     // UI 提示
                     document.getElementById('ui-goal').innerHTML = "<span class='text-green-400 animate-pulse'>終點已出現！快衝！</span>";
                 }
@@ -728,6 +762,12 @@
                             this.player.ammo += 20;
                             this.updateScore(10);
                             this.createParticles(ent.x, ent.y, '#60A5FA');
+                            this.entities.splice(i, 1);
+                        } else if (ent.type === 'broom') {
+                            audio.getGun(); // 借用獲得物品音效
+                            this.player.isFlying = true;
+                            this.player.flyTimer = 10; // 飛行 10 秒
+                            this.createParticles(ent.x, ent.y, '#FBBF24');
                             this.entities.splice(i, 1);
                         } else if (ent.type === 'junk') {
                             audio.hurt();
@@ -945,13 +985,30 @@
                         ctx.arc(ent.x + 20, ent.y, 12, 0, Math.PI * 2);
                         ctx.fill();
 
-                        // 畫紅旗子 (會隨 flagY 移動)
+                        // 畫紅旗子 (放大並加上「東寶」字樣)
                         ctx.fillStyle = '#EF4444';
                         ctx.beginPath();
                         ctx.moveTo(ent.x + 25, ent.flagY);
-                        ctx.lineTo(ent.x + 80, ent.flagY + 15);
-                        ctx.lineTo(ent.x + 25, ent.flagY + 30);
+                        ctx.lineTo(ent.x + 135, ent.flagY + 10);
+                        ctx.lineTo(ent.x + 120, ent.flagY + 35);
+                        ctx.lineTo(ent.x + 135, ent.flagY + 60);
+                        ctx.lineTo(ent.x + 25, ent.flagY + 70);
                         ctx.fill();
+
+                        // 寫上「東寶」
+                        ctx.save();
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.font = '900 30px "ZCOOL KuaiLe", "Noto Sans TC", sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                        ctx.shadowBlur = 4;
+                        ctx.shadowOffsetX = 2;
+                        ctx.shadowOffsetY = 2;
+                        ctx.translate(ent.x + 75, ent.flagY + 35);
+                        ctx.rotate(0.05); // 配合旗子的稍微傾斜
+                        ctx.fillText('東寶', 0, 0);
+                        ctx.restore();
                         continue;
                     }
                     else if (ent.type === 'monster') ctx.font = '45px Arial';
@@ -972,9 +1029,10 @@
                     }
                 }
 
-                // 畫玩家 (魔法師)
+                // 畫玩家 (Q版小小魔法師)
                 let state = 'idle';
-                if (timestamp - this.player.lastShootTime < 200) state = 'shoot';
+                if (this.player.isFlying) state = 'fly';
+                else if (timestamp - this.player.lastShootTime < 200) state = 'shoot';
                 else if (!this.player.isGrounded) state = 'jump';
                 else if (Math.abs(this.player.vx) > 0) state = 'run';
 
@@ -992,80 +1050,151 @@
                     legAngle1 = -30;
                     legAngle2 = 20;
                     armAngle = -45;
+                    bounce = 5; // 跳躍時身體稍微拉長
+                } else if (state === 'fly') {
+                    legAngle1 = 45;
+                    legAngle2 = 60;
+                    armAngle = -20;
+                    bounce = Math.sin(timestamp * 0.01) * 4; // 飄浮感
                 } else if (state === 'shoot') {
                     armAngle = -80;
                 }
 
-                // 紅色披風
-                ctx.fillStyle = '#B91C1C';
+                // 畫魔法掃把 (要在腳的底層)
+                if (state === 'fly') {
+                    // 掃把柄
+                    ctx.fillStyle = '#78350F';
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(-25, -12 - bounce, 55, 6, 3);
+                    else ctx.fillRect(-25, -12 - bounce, 55, 6);
+                    ctx.fill();
+
+                    // 掃把尾巴
+                    ctx.fillStyle = '#D97706';
+                    ctx.beginPath();
+                    ctx.moveTo(-20, -12 - bounce);
+                    ctx.lineTo(-45, -22 - bounce);
+                    ctx.lineTo(-50, -9 - bounce);
+                    ctx.lineTo(-45, 3 - bounce);
+                    ctx.lineTo(-20, -6 - bounce);
+                    ctx.fill();
+                    
+                    // 掃把上的星星閃爍
+                    ctx.fillStyle = '#FDE047';
+                    ctx.beginPath(); ctx.arc(28, -9 - bounce, 3, 0, Math.PI*2); ctx.fill();
+                }
+
+                // 披風 (明亮的櫻桃粉)
+                ctx.fillStyle = '#FB7185';
                 ctx.beginPath();
                 ctx.moveTo(-10, -35 - bounce);
-                let capeFlow = state === 'run' ? Math.sin(timestamp * 0.02) * 8 : (state === 'jump' ? 15 : 0);
-                ctx.lineTo(-20 - capeFlow, -10 - bounce);
-                ctx.lineTo(-5, -10 - bounce);
+                let capeFlow = state === 'run' ? Math.sin(timestamp * 0.02) * 8 : 
+                              (state === 'jump' ? 15 : 
+                              (state === 'fly' ? 20 + Math.sin(timestamp * 0.05) * 5 : 0));
+                ctx.lineTo(-25 - capeFlow, -8 - bounce);
+                ctx.lineTo(-8, -8 - bounce);
                 ctx.fill();
 
-                // 腳
-                ctx.fillStyle = '#1E3A8A';
-                ctx.save(); ctx.rotate(legAngle2 * Math.PI / 180); ctx.fillRect(-6, -15, 6, 15); ctx.restore();
-                ctx.save(); ctx.rotate(legAngle1 * Math.PI / 180); ctx.fillRect(0, -15, 6, 15); ctx.restore();
+                // 腳 (圓潤的棕色小鞋子)
+                ctx.fillStyle = '#78350F';
+                ctx.save(); ctx.rotate(legAngle2 * Math.PI / 180); 
+                ctx.beginPath(); ctx.ellipse(-5, -8, 5, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+                ctx.save(); ctx.rotate(legAngle1 * Math.PI / 180); 
+                ctx.beginPath(); ctx.ellipse(5, -8, 5, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
 
-                // 身體長袍
-                ctx.fillStyle = '#4C1D95';
+                // 身體長袍 (天空藍)
+                ctx.fillStyle = '#60A5FA';
                 ctx.beginPath();
-                ctx.moveTo(-14, -12 - bounce);
-                ctx.lineTo(14, -12 - bounce);
-                ctx.lineTo(10, -35 - bounce);
-                ctx.lineTo(-10, -35 - bounce);
+                ctx.moveTo(-15, -12 - bounce);
+                ctx.lineTo(15, -12 - bounce);
+                ctx.lineTo(12, -35 - bounce);
+                ctx.lineTo(-12, -35 - bounce);
                 ctx.fill();
 
-                // 臉部
-                ctx.fillStyle = '#FFEDD5';
+                // 臉部 (超可愛Q版扁圓大頭)
+                ctx.fillStyle = '#FFE4E1';
                 ctx.beginPath();
-                ctx.arc(0, -42 - bounce, 11, 0, Math.PI * 2);
+                if (ctx.ellipse) {
+                    ctx.ellipse(0, -42 - bounce, 18, 16, 0, 0, Math.PI * 2);
+                } else {
+                    ctx.arc(0, -42 - bounce, 17, 0, Math.PI * 2);
+                }
                 ctx.fill();
 
-                // 眼睛
+                // 眼睛 (大大的閃亮黑眼珠)
                 ctx.fillStyle = '#000';
-                ctx.beginPath(); ctx.arc(3, -44 - bounce, 2, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(8, -44 - bounce, 2, 0, Math.PI * 2); ctx.fill();
+                if (ctx.ellipse) {
+                    ctx.beginPath(); ctx.ellipse(6, -42 - bounce, 2.5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.ellipse(14, -42 - bounce, 2.5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+                } else {
+                    ctx.beginPath(); ctx.arc(6, -42 - bounce, 3, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(14, -42 - bounce, 3, 0, Math.PI * 2); ctx.fill();
+                }
                 
-                // 腮紅
-                ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
-                ctx.beginPath(); ctx.arc(1, -40 - bounce, 2.5, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(9, -40 - bounce, 2.5, 0, Math.PI*2); ctx.fill();
+                // 眼睛高光
+                ctx.fillStyle = '#FFF';
+                ctx.beginPath(); ctx.arc(6.5, -43 - bounce, 1, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(14.5, -43 - bounce, 1, 0, Math.PI * 2); ctx.fill();
+                
+                // 腮紅 (粉嫩大片)
+                ctx.fillStyle = 'rgba(255, 105, 180, 0.4)';
+                if (ctx.ellipse) {
+                    ctx.beginPath(); ctx.ellipse(2, -37 - bounce, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.ellipse(16, -37 - bounce, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+                } else {
+                    ctx.beginPath(); ctx.arc(2, -37 - bounce, 3, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(16, -37 - bounce, 3, 0, Math.PI*2); ctx.fill();
+                }
 
-                // 魔法帽
+                // 嘴巴 (小小的微笑)
+                ctx.strokeStyle = '#D97706';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(10, -38 - bounce, 2, 0, Math.PI); ctx.stroke();
+
+                // 魔法帽 (經典的藍色大巫師帽，帽尖向後垂)
                 ctx.fillStyle = '#3B82F6';
                 ctx.beginPath();
-                ctx.moveTo(-18, -48 - bounce); 
-                ctx.lineTo(18, -48 - bounce);
-                ctx.lineTo(5, -70 - bounce); 
+                ctx.moveTo(-24, -54 - bounce); // 帽沿
+                ctx.lineTo(24, -54 - bounce);
+                ctx.lineTo(10, -68 - bounce);
+                ctx.lineTo(-10, -90 - bounce); // 帽尖向後彎
+                ctx.lineTo(-6, -68 - bounce);
                 ctx.fill();
-                ctx.strokeStyle = '#1E3A8A';
-                ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.moveTo(-18, -48 - bounce); ctx.lineTo(18, -48 - bounce); ctx.stroke();
+                
+                // 帽沿黃色裝飾帶
+                ctx.strokeStyle = '#FBBF24';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(-20, -56 - bounce); ctx.lineTo(20, -56 - bounce); ctx.stroke();
 
                 // 手臂與魔杖
                 ctx.save();
                 ctx.translate(0, -30 - bounce);
                 ctx.rotate(armAngle * Math.PI / 180);
-                ctx.fillStyle = '#4C1D95';
-                ctx.fillRect(-4, 0, 8, 16);
-                ctx.fillStyle = '#FFEDD5';
-                ctx.beginPath(); ctx.arc(0, 18, 4, 0, Math.PI * 2); ctx.fill();
                 
-                // 魔杖
-                ctx.fillStyle = '#8B4513';
-                ctx.fillRect(-2, 5, 4, -30);
+                // 手臂
+                ctx.fillStyle = '#60A5FA';
+                if (ctx.roundRect) {
+                    ctx.beginPath(); ctx.roundRect(-4, 0, 8, 14, 4); ctx.fill();
+                } else {
+                    ctx.fillRect(-4, 0, 8, 14);
+                }
                 
-                // 魔法星星
+                // 小手
+                ctx.fillStyle = '#FFE4E1';
+                ctx.beginPath(); ctx.arc(0, 14, 4, 0, Math.PI * 2); ctx.fill();
+                
+                // 魔杖 (經典木色底座)
+                ctx.fillStyle = '#D97706';
+                ctx.fillRect(-2, 4, 4, -30);
+                
+                // 魔法星星 (Q版大星星)
                 ctx.fillStyle = '#FEF08A';
                 ctx.beginPath();
                 let starScale = state === 'shoot' ? 1.5 + Math.random() * 0.5 : 1;
-                ctx.arc(0, -25, 4 * starScale, 0, Math.PI * 2);
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#FEF08A';
+                ctx.arc(0, -26, 7 * starScale, 0, Math.PI * 2);
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#FDE047';
                 ctx.fill();
                 ctx.restore();
 
@@ -1142,6 +1271,15 @@
                 document.getElementById('ui-score').innerText = this.player.score;
                 document.getElementById('ui-ammo').innerText = this.player.ammo;
                 document.getElementById('ui-time').innerText = this.timeLeft;
+
+                // 更新飛行 UI 狀態
+                const flyContainer = document.getElementById('ui-fly-container');
+                if (this.player.isFlying) {
+                    flyContainer.classList.remove('hidden');
+                    document.getElementById('ui-fly-time').innerText = Math.ceil(this.player.flyTimer);
+                } else {
+                    flyContainer.classList.add('hidden');
+                }
             }
 
             gameOver(isWin, msg) {
