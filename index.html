@@ -688,9 +688,11 @@
                 let nextY = this.player.y + this.player.vy * dt;
 
                 // 邊界限制 (不能往左走出畫面，也不能飛出頂部天空)
-                // 加入左側邊距，避免主角走到左下角被手機虛擬搖桿擋住
+                // 加入動態左側邊距，避免主角走到左下角被手機虛擬搖桿完全擋住
                 const isMobile = !document.getElementById('mobile-controls').classList.contains('hidden');
-                const leftBound = this.camera.x + (isMobile ? 120 : 0);
+                // 取得搖桿在當前螢幕縮放比例下的真實遊戲尺寸 (物理寬度約 180px)
+                const safeLeftMargin = isMobile ? (180 / (window.currentScale || 1)) : 0;
+                const leftBound = this.camera.x + safeLeftMargin;
                 
                 if (nextX < leftBound) nextX = leftBound;
                 if (nextY < 0) nextY = 0;
@@ -789,37 +791,51 @@
                 }
 
                 // --- 飛碟與炸彈邏輯 ---
-                if (this.ufoCooldown > 0) {
-                    this.ufoCooldown -= dt; // 飛碟被擊落後的冷卻時間
-                } else {
-                    let targetUfoCount = 0;
-                    if (this.player.score >= 50) targetUfoCount = 1; // 50分以上 1台
+                // 過關動畫中不產生新飛碟
+                if (this.state === 'playing') {
+                    if (this.ufoCooldown > 0) {
+                        this.ufoCooldown -= dt; // 飛碟被擊落後的冷卻時間
+                    } else {
+                        let targetUfoCount = 0;
+                        if (this.player.score >= 50) targetUfoCount = 1; // 50分以上 1台
 
-                    // 根據目標數量產生飛碟 (包含寬高與血量屬性，以供碰撞偵測)
-                    while (this.ufos.length < targetUfoCount) {
-                        this.ufos.push({
-                            timer: 1.0 + Math.random() * 2.0,
-                            x: 0,
-                            y: 80,
-                            w: 60,
-                            h: 60,
-                            hp: 5,
-                            offset: this.ufos.length * Math.PI // 讓飛碟移動的相位交錯，避免重疊
-                        });
+                        // 根據目標數量產生飛碟 (包含寬高與血量屬性，以供碰撞偵測)
+                        while (this.ufos.length < targetUfoCount) {
+                            this.ufos.push({
+                                timer: 1.0 + Math.random() * 2.0,
+                                x: 0,
+                                y: 80,
+                                w: 60,
+                                h: 60,
+                                hp: 5,
+                                offset: this.ufos.length * Math.PI // 讓飛碟移動的相位交錯，避免重疊
+                            });
+                        }
                     }
                 }
                 
-                for (let i = 0; i < this.ufos.length; i++) {
+                // 改為反向迴圈，方便在飛離畫面時移除陣列元素
+                for (let i = this.ufos.length - 1; i >= 0; i--) {
                     let ufo = this.ufos[i];
-                    // 飛碟在畫面上方左右盤旋 (加上 offset 產生交錯)
-                    ufo.x = this.camera.x + canvas.width / 2 - 100 + Math.sin(timestamp / 600 + ufo.offset) * 350;
-                    ufo.y = 80 + Math.cos(timestamp / 400 + ufo.offset) * 20;
+                    
+                    if (this.state === 'win_anim' || this.state === 'win') {
+                        // 主角觸碰旗子過關時，敵方飛碟向上方飛離畫面逃走
+                        ufo.y -= 250 * dt;
+                        ufo.x += 100 * dt;
+                        if (ufo.y < -100) {
+                            this.ufos.splice(i, 1);
+                        }
+                    } else {
+                        // 飛碟在畫面上方左右盤旋 (加上 offset 產生交錯)
+                        ufo.x = this.camera.x + canvas.width / 2 - 100 + Math.sin(timestamp / 600 + ufo.offset) * 350;
+                        ufo.y = 80 + Math.cos(timestamp / 400 + ufo.offset) * 20;
 
-                    ufo.timer -= dt;
-                    if (ufo.timer <= 0) {
-                        // 投下炸彈
-                        this.bombs.push({ x: ufo.x + 15, y: ufo.y + 30, w: 30, h: 30, vy: 0, emoji: '💣' });
-                        ufo.timer = 1.0 + Math.random() * 2.0; // 隨機 1 ~ 3 秒投一顆
+                        ufo.timer -= dt;
+                        if (ufo.timer <= 0) {
+                            // 投下炸彈
+                            this.bombs.push({ x: ufo.x + 15, y: ufo.y + 30, w: 30, h: 30, vy: 0, emoji: '💣' });
+                            ufo.timer = 1.0 + Math.random() * 2.0; // 隨機 1 ~ 3 秒投一顆
+                        }
                     }
                 }
 
@@ -829,8 +845,8 @@
                     b.vy += GRAVITY * 0.4 * dt; // 炸彈掉落速度慢一點
                     b.y += b.vy * dt;
 
-                    // 檢查炸彈與玩家碰撞
-                    if (this.isColliding(this.player, b)) {
+                    // 檢查炸彈與玩家碰撞 (加入判斷：確保玩家在過關動畫中不受傷)
+                    if (this.state === 'playing' && this.isColliding(this.player, b)) {
                         audio.hurt();
                         this.createParticles(b.x, b.y, '#EF4444');
                         this.updateHealth(-MAX_HEALTH); // 直接歸零
@@ -845,8 +861,10 @@
                 }
 
                 // 攝影機跟隨
-                if (this.player.x > this.camera.x + 300) {
-                    this.camera.x = this.player.x - 300;
+                // 動態計算攝影機推進線 (推進至畫面 40% 的位置)，確保主角保持在中左方，絕不會被右側射擊鈕或左側搖桿蓋住
+                const pushLine = Math.max(300, canvas.width * 0.4);
+                if (this.player.x > this.camera.x + pushLine) {
+                    this.camera.x = this.player.x - pushLine;
                 }
 
                 // 動態生成關卡 (依據動態畫面寬度決定生成多遠)
@@ -880,22 +898,29 @@
                         }
                     }
 
+                    // 更新飛碟宣導布條狀態 (從左飛向右)
+                    if (this.winUfoBanner) {
+                        this.winUfoBanner.x += this.winUfoBanner.vx * dt;
+                        this.winUfoBanner.yOffset = Math.sin(timestamp * 0.005) * 10; // 上下浮動感
+                    }
+
                     if (flag.state === 'raising') {
                         flag.flagY -= 150 * dt; // 旗子上升
                         if (flag.flagY <= flag.y + 15) {
                             flag.flagY = flag.y + 15;
                             flag.state = 'fireworks';
-                            this.winTimer = 5; // 延長煙火與跳舞時間至 5 秒
                         }
                     } else if (flag.state === 'fireworks') {
-                        this.winTimer -= dt;
+                        // 只要布條還在飛，煙火就會持續施放
                         if (Math.random() < 0.15) {
                             this.createFirework(
                                 this.camera.x + canvas.width/2 + (Math.random() - 0.5) * 500,
                                 50 + Math.random() * 250
                             );
                         }
-                        if (this.winTimer <= 0) {
+                        
+                        // 當飛碟與布條「完全離開螢幕右側」後，才結束動畫並顯示排行榜
+                        if (this.winUfoBanner && this.winUfoBanner.x > this.camera.x + canvas.width + 500) {
                             this.gameOver(true, "成功抵達終點！");
                             return;
                         }
@@ -993,6 +1018,14 @@
                                 { emoji: '🐰', fruit: '🍒', x: spawnBaseX + 180, targetX: ent.x + 160, vx: -380, state: 'run' },
                                 { emoji: '🐻', fruit: '🍋', x: spawnBaseX + 360, targetX: ent.x + 240, vx: -410, state: 'run' }
                             ];
+
+                            // 新增：飛碟拖曳過關宣導布條 (從畫面左側外準備飛向右側)
+                            this.winUfoBanner = {
+                                x: this.camera.x - 500, // 初始位置在螢幕左邊外面 (留空間給布條)
+                                y: 80,
+                                vx: 200, // 將速度調快至 200
+                                text: '健康飲食，愛惜食物'
+                            };
                         }
                     }
                 }
@@ -1157,7 +1190,12 @@
                 // --- 5. 中景：野外叢林 (視差 0.5) ---
                 ctx.save();
                 ctx.translate(-this.camera.x * 0.5, 0);
-                for(let i=-2; i<60; i++) {
+                
+                // 動態生成可見範圍內的樹木與花朵
+                let startI = Math.floor((this.camera.x * 0.5) / 200) - 2;
+                let endI = Math.floor((this.camera.x * 0.5 + canvas.width) / 200) + 3;
+
+                for(let i = startI; i < endI; i++) {
                     let tx = i * 200 + (Math.sin(i * 11) * 100);
                     let ty = 320 + (Math.cos(i * 5) * 40);
                     
@@ -1179,6 +1217,7 @@
                     ctx.arc(tx + 50, ty + 50, 40, 0, Math.PI*2);
                     ctx.fill();
                 }
+                
                 ctx.restore();
 
                 // --- 6. 前景：遊戲實體與平台 (視差 1.0) ---
@@ -1298,6 +1337,71 @@
 
                         ctx.restore();
                     }
+                }
+
+                // 畫過關飛碟布條
+                if (this.winUfoBanner) {
+                    let ufoX = this.winUfoBanner.x;
+                    let ufoY = this.winUfoBanner.y + (this.winUfoBanner.yOffset || 0);
+
+                    ctx.save();
+                    
+                    let bannerWidth = 420;
+                    let bannerHeight = 60;
+                    let bannerX = ufoX - 30 - bannerWidth;
+                    let bannerY = ufoY - 10;
+                    
+                    // 讓布條產生波浪飄動感
+                    let wave1 = Math.sin(timestamp * 0.01) * 8;
+                    let wave2 = Math.cos(timestamp * 0.01) * 8;
+
+                    // 畫連接線 (飛碟牽著布條)
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(ufoX + 10, ufoY + 20); // 飛碟中心點左側
+                    ctx.lineTo(bannerX + bannerWidth, bannerY + bannerHeight / 2 + wave2);
+                    ctx.stroke();
+
+                    // 畫飄動的白布條
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                    ctx.shadowBlur = 8;
+                    ctx.shadowOffsetX = 3;
+                    ctx.shadowOffsetY = 3;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(bannerX, bannerY + wave1);
+                    ctx.lineTo(bannerX + bannerWidth, bannerY + wave2);
+                    ctx.lineTo(bannerX + bannerWidth, bannerY + bannerHeight + wave2);
+                    ctx.lineTo(bannerX, bannerY + bannerHeight + wave1);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // 畫布條上的字
+                    ctx.shadowBlur = 0;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+                    ctx.fillStyle = '#FF3399'; // 桃紅色
+                    ctx.font = '900 30px "ZCOOL KuaiLe", "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // 讓文字稍微跟著布條傾斜/位移
+                    ctx.translate(bannerX + bannerWidth / 2, bannerY + bannerHeight / 2 + (wave1 + wave2) / 2);
+                    let angle = Math.atan2(wave2 - wave1, bannerWidth);
+                    ctx.rotate(angle);
+                    ctx.fillText(this.winUfoBanner.text, 0, 0);
+                    
+                    ctx.restore();
+
+                    // 畫牽著布條的飛碟
+                    ctx.save();
+                    ctx.font = '60px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🛸', ufoX + 30, ufoY + 20);
+                    ctx.restore();
                 }
 
                 // 畫玩家 (Q版小小魔法師)
