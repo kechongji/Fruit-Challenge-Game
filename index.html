@@ -347,6 +347,7 @@
             constructor() {
                 this.ctx = null;
                 this.enabled = false;
+                this.bgmActive = false; // 新增 BGM 狀態
             }
             init() {
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -385,6 +386,97 @@
                 [300, 250, 200, 150].forEach((f, i) => {
                     setTimeout(() => this.playTone(f, 'sawtooth', 0.4, 0.2), i * 300);
                 });
+            }
+
+            // --- 新增：叢林探險背景音樂 (Procedural BGM) ---
+            startBGM() {
+                if (!this.enabled || this.bgmActive) return;
+                this.bgmActive = true;
+                this.nextBeatTime = this.ctx.currentTime + 0.1;
+                this.beatStep = 0;
+                
+                const scheduleBGM = () => {
+                    if (!this.bgmActive) return;
+                    
+                    // 預先排程接下來的節拍，確保音樂無縫循環不卡頓
+                    while (this.nextBeatTime < this.ctx.currentTime + 0.1) {
+                        this.playBeat(this.nextBeatTime, this.beatStep);
+                        // 節奏速度：大約 100 BPM，每 16 分音符 0.15 秒
+                        this.nextBeatTime += 0.15; 
+                        this.beatStep = (this.beatStep + 1) % 16;
+                    }
+                    this.bgmTimer = requestAnimationFrame(scheduleBGM);
+                };
+                scheduleBGM();
+            }
+
+            playBeat(time, step) {
+                // 1. 叢林低音邦哥鼓 (Bongo) - 在 0, 3, 8, 10 拍點
+                if ([0, 3, 8, 10].includes(step)) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(130, time);
+                    osc.frequency.exponentialRampToValueAtTime(50, time + 0.2);
+                    gain.gain.setValueAtTime(0.2, time);
+                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(time);
+                    osc.stop(time + 0.2);
+                }
+                
+                // 2. 叢林高音木魚 (Woodblock) - 在 4, 12 拍點
+                if ([4, 12].includes(step)) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(600, time);
+                    gain.gain.setValueAtTime(0.04, time);
+                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(time);
+                    osc.stop(time + 0.05);
+                }
+
+                // 3. 隨機叢林鳥鳴 (Bird Chirp)
+                if (step === 0 && Math.random() < 0.4) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    const baseFreq = 1500 + Math.random() * 1500;
+                    osc.frequency.setValueAtTime(baseFreq, time);
+                    osc.frequency.linearRampToValueAtTime(baseFreq + 400, time + 0.1);
+                    osc.frequency.linearRampToValueAtTime(baseFreq - 200, time + 0.2);
+                    gain.gain.setValueAtTime(0, time);
+                    gain.gain.linearRampToValueAtTime(0.03, time + 0.1);
+                    gain.gain.linearRampToValueAtTime(0, time + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(time);
+                    osc.stop(time + 0.2);
+                }
+                
+                // 4. 隨機叢林蟲鳴 (Cricket)
+                if (step === 8 && Math.random() < 0.5) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(3000 + Math.random() * 2000, time);
+                    gain.gain.setValueAtTime(0, time);
+                    gain.gain.linearRampToValueAtTime(0.015, time + 0.02);
+                    gain.gain.linearRampToValueAtTime(0, time + 0.05);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(time);
+                    osc.stop(time + 0.05);
+                }
+            }
+
+            stopBGM() {
+                this.bgmActive = false;
+                cancelAnimationFrame(this.bgmTimer);
             }
         }
         const audio = new AudioSystem();
@@ -1668,6 +1760,8 @@
                 this.state = isWin ? 'win' : 'lose';
                 this.cleanup();
                 
+                audio.stopBGM(); // 遊戲結束時停止背景音樂
+                
                 if (isWin) {
                     audio.win();
                     document.getElementById('end-title').className = "text-5xl font-black mb-2 text-center text-green-400";
@@ -1771,6 +1865,7 @@
         document.getElementById('start-btn').addEventListener('click', async () => {
             const nameInput = document.getElementById('player-name').value.trim() || '勇者';
             audio.init(); // 必須在使用者點擊後初始化音效
+            audio.startBGM(); // 開始播放叢林背景音樂
             
             // 偵測是否為觸控設備 (手機或平板)
             const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
