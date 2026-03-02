@@ -24,22 +24,17 @@
         body {
             font-family: 'Noto Sans TC', sans-serif;
             color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            /* 移除 Flex 置中，讓絕對定位可以精準貼合左上角 */
         }
 
         #game-container {
-            position: relative;
-            /* 強制鎖定遊戲原始完美比例，依靠 JS 進行 Scale 縮放 */
-            width: 960px;
-            height: 540px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            /* 寬度與高度將由 JS 動態計算，以達到無黑邊的完美比例 */
             background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            /* 取消所有的自適應邊界，讓縮放更純粹 */
-            border-radius: 10px;
             overflow: hidden;
-            transform-origin: center center;
+            transform-origin: top left;
         }
 
         canvas {
@@ -129,6 +124,14 @@
             50% { transform: scale(1.05); }
         }
         .animate-pulse-fast { animation: pulse 1.5s infinite; }
+        
+        @keyframes happy-dance {
+            0%, 100% { transform: translateY(0) scale(1) rotate(-5deg); }
+            50% { transform: translateY(-20px) scale(1.1) rotate(5deg); }
+        }
+        .animate-happy-dance-1 { animation: happy-dance 0.9s infinite ease-in-out; }
+        .animate-happy-dance-2 { animation: happy-dance 1s infinite ease-in-out 0.2s; }
+        .animate-happy-dance-3 { animation: happy-dance 1.1s infinite ease-in-out 0.4s; }
         
         /* 橫向模式提示 */
         #orientation-warning {
@@ -257,6 +260,22 @@
                     <button id="start-btn" class="w-full max-w-xs px-8 py-3 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold rounded-full text-xl shadow-lg transform transition hover:scale-105 animate-pulse-fast">
                         開始遊戲
                     </button>
+
+                    <!-- 新增：開始畫面的可愛動物加油團 -->
+                    <div class="flex justify-center gap-6 mt-8">
+                        <div class="relative flex flex-col items-center animate-happy-dance-1">
+                            <span class="absolute -top-6 text-3xl drop-shadow-md z-10">🥭</span>
+                            <span class="text-5xl drop-shadow-lg">🐱</span>
+                        </div>
+                        <div class="relative flex flex-col items-center animate-happy-dance-2">
+                            <span class="absolute -top-6 text-3xl drop-shadow-md z-10">🍒</span>
+                            <span class="text-5xl drop-shadow-lg">🐰</span>
+                        </div>
+                        <div class="relative flex flex-col items-center animate-happy-dance-3">
+                            <span class="absolute -top-6 text-3xl drop-shadow-md z-10">🍋</span>
+                            <span class="text-5xl drop-shadow-lg">🐻</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -293,28 +312,31 @@
         // 全域變數儲存當前縮放比例，給虛擬搖桿計算使用
         window.currentScale = 1;
 
-        // --- 真實可視區域動態縮放 (完美 Scale 解決方案) ---
+        // --- 真實可視區域動態縮放 (無黑邊完美滿版全螢幕解決方案) ---
         function resizeGame() {
             const container = document.getElementById('game-container');
-            if (!container) return;
+            const canvas = document.getElementById('gameCanvas');
+            if (!container || !canvas) return;
             
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight; // 這是扣除手機工具列後的「真實可視高度」
             
-            // 計算寬度與高度的縮放比例，取較小者，以確保畫面能「完整塞入且不裁切」
-            const scaleX = windowWidth / 960;
-            const scaleY = windowHeight / 540;
-            window.currentScale = Math.min(scaleX, scaleY);
+            // 1. 固定遊戲內部高度 (維持跳躍物理手感一致)
+            const gameHeight = 540;
+            // 2. 依據設備真實比例，向左右動態延伸遊戲的「真實畫面寬度」
+            const gameWidth = gameHeight * (windowWidth / windowHeight);
 
-            // 將整個遊戲容器進行等比例縮放
-            container.style.transform = `scale(${window.currentScale})`;
-            
-            // 如果是在手機上全螢幕且比例很滿，可以取消圓角
-            if (windowWidth < 960) {
-                container.style.borderRadius = '0px';
-            } else {
-                container.style.borderRadius = '10px';
+            // 更新容器與 Canvas 的內部真實尺寸
+            container.style.width = gameWidth + 'px';
+            container.style.height = gameHeight + 'px';
+            if (canvas.width !== Math.floor(gameWidth)) {
+                canvas.width = gameWidth;
+                canvas.height = gameHeight;
             }
+
+            // 3. 將整個遊戲容器等比例縮放至完美貼合螢幕 (不再有黑邊或死角)
+            window.currentScale = windowHeight / gameHeight;
+            container.style.transform = `scale(${window.currentScale})`;
         }
         
         // 監聽視窗大小改變與螢幕旋轉
@@ -447,7 +469,8 @@
 
                 // 初始地板
                 this.platforms.push({ x: -1000, y: 480, w: 3000, h: 60 });
-                this.generateLevelChunks(1500);
+                // 依據螢幕動態寬度初始化更多關卡長度
+                this.generateLevelChunks(canvas.width + 1000);
 
                 this.bindControls();
                 this.updateUI();
@@ -710,7 +733,8 @@
                             y: 40 + Math.random() * 60, // 天空隨機高度
                             vx: 200 + Math.random() * 100, // 向右飛行的速度
                             vy: 0,
-                            dropX: this.camera.x + 150 + Math.random() * 500, // 隨機在畫面中投下水果的位置
+                            // 適應動態寬度：隨機在可視畫面中投下水果的位置
+                            dropX: this.camera.x + 150 + Math.random() * (canvas.width - 300), 
                             hasDropped: false,
                             emoji: '👼'
                         });
@@ -825,14 +849,14 @@
                     this.camera.x = this.player.x - 300;
                 }
 
-                // 動態生成關卡
-                this.generateLevelChunks(this.camera.x + 1200);
+                // 動態生成關卡 (依據動態畫面寬度決定生成多遠)
+                this.generateLevelChunks(this.camera.x + canvas.width + 600);
 
                 // 生成終點旗子條件：超過100分
                 if (this.player.score >= 100 && !this.flagSpawned) {
                     this.flagSpawned = true;
-                    // 生成在前方一段距離的平台上
-                    let flagX = this.player.x + 800;
+                    // 生成在前方一段距離的平台上 (確保適應各種超寬螢幕，不會突然生在臉上)
+                    let flagX = this.player.x + Math.max(800, canvas.width + 200);
                     this.platforms.push({ x: flagX - 50, y: 480, w: 200, h: 60 });
                     this.entities.push({ type: 'flag', x: flagX, y: 180, w: 40, h: 300, flagY: 410, state: 'idle' });
                     // UI 提示
@@ -842,12 +866,26 @@
                 // --- 勝利動畫與煙火邏輯 ---
                 let flag = this.entities.find(e => e.type === 'flag');
                 if (this.state === 'win_anim' && flag) {
+                    
+                    // 更新慶祝小動物的狀態 (跑向終點 -> 跳舞)
+                    if (this.winAnimals) {
+                        for (let animal of this.winAnimals) {
+                            if (animal.state === 'run') {
+                                animal.x += animal.vx * dt;
+                                if (animal.x <= animal.targetX) {
+                                    animal.x = animal.targetX;
+                                    animal.state = 'dance';
+                                }
+                            }
+                        }
+                    }
+
                     if (flag.state === 'raising') {
                         flag.flagY -= 150 * dt; // 旗子上升
                         if (flag.flagY <= flag.y + 15) {
                             flag.flagY = flag.y + 15;
                             flag.state = 'fireworks';
-                            this.winTimer = 3.5; // 煙火施放 3.5 秒
+                            this.winTimer = 5; // 延長煙火與跳舞時間至 5 秒
                         }
                     } else if (flag.state === 'fireworks') {
                         this.winTimer -= dt;
@@ -947,6 +985,14 @@
                             this.state = 'win_anim';
                             ent.state = 'raising';
                             this.player.x = ent.x - this.player.width; // 讓主角停在旗杆前
+                            
+                            // 觸碰旗子過關時，生成過關慶祝的小動物 (從畫面右側外開心跑進來)
+                            let spawnBaseX = Math.max(ent.x + 600, this.camera.x + canvas.width + 100);
+                            this.winAnimals = [
+                                { emoji: '🐱', fruit: '🥭', x: spawnBaseX, targetX: ent.x + 80, vx: -350, state: 'run' },
+                                { emoji: '🐰', fruit: '🍒', x: spawnBaseX + 180, targetX: ent.x + 160, vx: -380, state: 'run' },
+                                { emoji: '🐻', fruit: '🍋', x: spawnBaseX + 360, targetX: ent.x + 240, vx: -410, state: 'run' }
+                            ];
                         }
                     }
                 }
@@ -956,8 +1002,8 @@
                     let b = this.bullets[i];
                     b.x += b.vx * dt;
                     
-                    // 移除超出畫面的子彈
-                    if (b.x > this.camera.x + 1000 || b.x < this.camera.x - 100) {
+                    // 移除超出畫面的子彈 (適配動態寬度)
+                    if (b.x > this.camera.x + canvas.width + 100 || b.x < this.camera.x - 100) {
                         this.bullets.splice(i, 1);
                         continue;
                     }
@@ -1210,6 +1256,47 @@
                         // 畫剩餘綠條
                         ctx.fillStyle = '#10B981'; 
                         ctx.fillRect(ent.x + (ent.w-hpBarW)/2, ent.y - 10, hpBarW * (ent.hp/maxHp), 4);
+                    }
+                }
+
+                // 畫過關慶祝的小動物
+                if (this.winAnimals && this.winAnimals.length > 0) {
+                    for (let i = 0; i < this.winAnimals.length; i++) {
+                        let animal = this.winAnimals[i];
+                        
+                        // 計算動畫偏移
+                        let bounce = 0;
+                        let angle = 0;
+                        let fruitY = -15;
+                        
+                        if (animal.state === 'run') {
+                            bounce = Math.abs(Math.sin(timestamp * 0.015 + i)) * 15;
+                            angle = Math.sin(timestamp * 0.02 + i) * 0.1;
+                            fruitY = -10; // 跑步時拿在胸前
+                        } else if (animal.state === 'dance') {
+                            bounce = Math.abs(Math.sin(timestamp * 0.01 + i * 2)) * 30; // 瘋狂跳躍
+                            angle = Math.sin(timestamp * 0.015 + i) * 0.2; // 左右開心搖擺
+                            fruitY = -45 + Math.sin(timestamp * 0.02 + i) * 8; // 開心把水果高舉過頭
+                        }
+
+                        ctx.save();
+                        // 基底 Y 座標在平台上方 (平台 y 是 480，動物基底大約 460)
+                        ctx.translate(animal.x, 460 - bounce);
+                        ctx.rotate(angle);
+
+                        // 畫動物 (利用 scale 水平翻轉，轉向左邊面向主角與旗子)
+                        ctx.save();
+                        ctx.scale(-1, 1);
+                        ctx.font = '55px Arial';
+                        ctx.fillText(animal.emoji, 0, 10);
+                        ctx.restore();
+
+                        // 畫手中的水果
+                        ctx.font = '40px Arial';
+                        // 因為動物本體被翻轉過，要把水果畫在動物前方偏上
+                        ctx.fillText(animal.fruit, -25, fruitY);
+
+                        ctx.restore();
                     }
                 }
 
